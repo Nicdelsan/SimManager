@@ -2,29 +2,15 @@
 
 _Last updated: 2026-11-13_
 
-## M2 (branch m2-parsers)
-
-Complete on branch `m2-parsers` (`main` merged cleanly into `m2-parsers`).
-Plan: [roadmap.md#m2](roadmap.md#m2--incremental-readers-and-parsers).
-
-### Implemented in M2
-
-- `contracts/storage.py` & `storage_sqlite`: added `create_run` (`origin='manual'`), `run(run_id)`, `RunRecord`.
-- `contracts/timeseries.py` (`timeseries` v1): `FileCursor`, `SeriesKey`, `SeriesMeta`, `SeriesPoints`, `RunSolverState`, `TimeSeriesStore` protocol.
-- `storage_sqlite`: migration `0003_timeseries.sql` (`file_cursors`, `series`, `sample_chunks` with float64 `array('d')` blobs + 16:1 and 256:1 min/max downsampled levels, `run_solver_state`, with `REFERENCES runs(id) ON DELETE CASCADE`) and `timeseries-sqlite` plugin (`SqliteTimeSeriesStore`) sharing the single SQLite connection.
-- `contracts/solver.py` (`solver.<kind>` v1): `WatchedFile`, `SolverStatusUpdate`, `ParsedChunk`, `Solver` protocol.
-- `readers/`: `IncrementalReader` (chunked `RemoteSession.read_range`, truncation/replacement detection via `size < offset` and 256-byte prefix, partial last line buffering, tail-first auto-backfill with record-aligned seam) + `LocalRemoteSession`.
-- `solver-converge` (`solver.converge`): discovery (`inputs.in`, `logout.txt`, `outputs_*/stream0/*.out`, `*.out`) + pure parsers for multi-doc YAML `inputs.in`, ANSI-stripped `logout.txt`, and generic multi-qualifier `.out` headers.
-- `solver-openfoam` (`solver.openfoam`): discovery (`system/controlDict`, `system/decomposeParDict`, `log.<app>` / `log.out`) + pure parsers (`foamLog` first-residual rule, anchored `^Time =`, pre-`Time` Courant/deltaT block alignment, custom `min/max`, `End`, `FOAM FATAL [IO] ERROR`). `postProcessing/**` deferred until a sample is available.
-- `contracts/ingest.py` (`ingest` v1) and `solver-ingest` plugin: orchestrates `detect_solver`, `sync_run`, background `auto_backfill` tasks (`ctx.task`), M1 integration via `monitor.polled` + `storage.jobs()`, active-run bootstrap on startup, periodic polling, and durable events (`series.updated`, `run.progress`).
-- `cli/ingest.py`: `simman ingest local|status|series` subcommands over `LocalRemoteSession` (creating manual runs in `runs` when `--run-id` is omitted), wired into `cli/main.py` via `ingest_app`.
-
 ## Current milestone
 
-**M1 — SSH and SLURM discovery**: done 2026-11-13. All three clusters connect and pass
-`simman cluster test`; real job lines still to be seen (A2, A7).
-**M2 — incremental readers and parsers**: developed in parallel in a separate worktree
-(branch `m2-parsers`), on top of the M1 contracts.
+**M3 — web UI**: planning (2026-11-13). Plan to be approved by the user before any code.
+M0, M1 and M2 are on `main`; no parallel worktrees or other active agents.
+
+- M1 — SSH and SLURM discovery: done 2026-11-13. All three clusters pass
+  `simman cluster test`; real job lines still to be seen (A2, A7).
+- M2 — incremental readers and parsers: done and merged into `main` on 2026-11-13
+  (`cf643ea`). Plan: [roadmap.md#m2](roadmap.md#m2--incremental-readers-and-parsers).
 
 ## What works
 
@@ -51,10 +37,28 @@ M1 (2026-11-13):
   SFTP), policy, parsers on anonymized fixtures, monitor on a fake transport, CLI.
   ruff clean; mypy strict on kernel + contracts.
 
+M2 (2026-11-13, merged into `main`):
+- `contracts/storage.py` & `storage_sqlite`: `create_run` (`origin='manual'`), `run(run_id)`,
+  `RunRecord`.
+- `contracts/timeseries.py` (`timeseries` v1): `FileCursor`, `SeriesKey`, `SeriesMeta`,
+  `SeriesPoints`, `RunSolverState`, `TimeSeriesStore`.
+- `storage_sqlite`: migration `0003_timeseries.sql` (`file_cursors`, `series`,
+  `sample_chunks` with float64 blobs + 16:1 and 256:1 min/max levels, `run_solver_state`,
+  runs FK) and `timeseries-sqlite` plugin sharing the SQLite connection.
+- `contracts/solver.py` (`solver.<kind>` v1): `WatchedFile`, `SolverStatusUpdate`,
+  `ParsedChunk`, `Solver`.
+- `readers/`: `IncrementalReader` (chunked `read_range`, truncation/replacement detection,
+  partial last line, tail-first auto-backfill) + `LocalRemoteSession`.
+- `solver-converge`, `solver-openfoam`: discovery + pure parsers (OpenFOAM
+  `postProcessing/**` deferred until a sample exists).
+- `contracts/ingest.py` (`ingest` v1) and `solver-ingest`: solver detection, sync, background
+  backfill, M1 integration via `monitor.polled`, durable events `series.updated`,
+  `run.progress`.
+- CLI: `simman ingest local|status|series`.
+
 ## Not yet implemented
 
-Solver parsers and incremental readers (M2), web UI, terminal, campaigns, snapshots,
-notifications. PBS is on standby (user decision 2026-11-13). Passphrase-protected keys in
+Web UI (M3), terminal, campaigns, snapshots, notifications. PBS is on standby (user decision 2026-11-13). Passphrase-protected keys in
 the new OpenSSH format would need `bcrypt`: not added, the user has no passphrases.
 
 ## Known limitations
@@ -70,6 +74,8 @@ the new OpenSSH format would need `bcrypt`: not added, the user has no passphras
 
 ## Changelog
 
+- 2026-11-13 — M2 merged into `main` (`cf643ea`); status corrected (was "branch
+  m2-parsers"). M3 planning started.
 - 2026-11-13 — M1 verified on the three real clusters (`simman cluster test`): A3
   verified, A2 partially; `uni-b` is Slurm 22.05.9 without accounting.
 - 2026-11-13 — transport-ssh: clear hint when a Windows `IdentityFile` path in the SSH
