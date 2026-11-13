@@ -11,11 +11,22 @@ needs one.
 
 ### M5 (branch m5-campaigns)
 
-- Migration `0004_campaigns.sql`, `contracts/campaign.py` (`campaign` v1,
-  `campaign.manager` v1), `campaign-sqlite`, and `campaign-excel` (`.xlsx` import/export,
-  `work_root`-scoped auto-matching on `monitor.polled`, `NNN_MMM` derivation, computed
-  case states, durable events) implemented and tested (incl. slow test on real sample).
-- Next: `simman campaign` CLI (`cli/campaign.py`).
+- Backend complete (2026-11-13):
+  - Migration `0004_campaigns.sql`: `projects`, `campaigns` (with `work_root`), `cases`
+    (with `parent_case_id`, `manual_state`, `computed_state`, `params_json`, `active`),
+    `case_runs`, `case_run_exclusions`, `case_match_ambiguities`.
+  - Contracts `contracts/campaign.py` (`campaign` v1 `CampaignStore`, `campaign.manager` v1
+    `CampaignService`) and durable events `campaign.imported`, `case.matched`,
+    `case.unmatched`, `case.state_changed`, `campaign.ambiguous_match`.
+  - `campaign-sqlite` (`storage_sqlite/campaign.py`) and `campaign-excel`
+    (`plugins/campaign_excel/`): Excel preview/idempotent reimport/rename detection,
+    `work_root`-scoped matching on `monitor.polled` (`auto_work_dir` → `auto_dir_name` →
+    `auto_regex`), `NNN_MMM` derivation, multi-run computed states (`planned`, `queued`,
+    `running`, `completed`, `stopped`, `diverged`, `failed`, `cancelled`, `unknown`),
+    enriched `.xlsx` export preserving template sheets/styles after `ws.max_column`.
+  - CLI (`cli/campaign.py`): `simman campaign import|list|show|match|unmatch|unmatched|export`.
+- Deferred to post-merge with M3: hooking solver state change events once M3 step 2 lands,
+  and campaign table view in the web UI.
 
 - M1 — SSH and SLURM discovery: done 2026-11-13. All three clusters pass
   `simman cluster test`; real job lines still to be seen (A2, A7).

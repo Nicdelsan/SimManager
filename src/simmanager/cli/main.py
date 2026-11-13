@@ -34,12 +34,14 @@ from simmanager.logging_setup import setup_logging
 from simmanager.plugins.scheduler_slurm.parse import SACCT_DISABLED, parse_squeue, squeue_argv
 from simmanager.plugins.transport_ssh import load_clusters
 
+from .campaign import campaign_app
 from .ingest import ingest_app
 
 app = typer.Typer(no_args_is_help=True, help="SimManager: monitor CFD simulations on HPC clusters.")
 config_app = typer.Typer(no_args_is_help=True, help="Inspect the layered configuration.")
 app.add_typer(config_app, name="config")
 app.add_typer(ingest_app, name="ingest")
+app.add_typer(campaign_app, name="campaign")
 cluster_app = typer.Typer(no_args_is_help=True, help="Cluster profiles (clusters.yaml).")
 app.add_typer(cluster_app, name="cluster")
 jobs_app = typer.Typer(no_args_is_help=True, help="Jobs discovered by the monitor.")

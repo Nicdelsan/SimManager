@@ -61,6 +61,18 @@ Plan approved 2026-11-13 with these decisions:
   `AWAITING_AUTH`, no blind retry. Secrets never logged or kept; the transport no
   longer caches key passphrases. Browser opened automatically by `serve`.
 
-## M4 — Terminal · M5 — Excel campaigns · M6 — Snapshots, rules, notifications
+## M5 — Excel campaigns (backend)
+
+Plan approved 2026-11-13 (branch `m5-campaigns`, migration `0004_campaigns.sql`):
+- Hierarchy `Project → Campaign → Case → Run`, preserving manual `State` separately from
+  `computed_state` (`planned`, `queued`, `running`, `completed`, `stopped`, `diverged`,
+  `failed`, `cancelled`, `unknown`) and original parameters verbatim.
+- `work_root`-scoped matching (`auto_work_dir` → `auto_dir_name` → `auto_regex`) on import
+  and `monitor.polled`; configurable `NNN_MMM` derivation regex; manual match locking and
+  unmatch exclusions.
+- Template-preserving `.xlsx` export appending `SM_*` columns after `ws.max_column`
+  (never overwriting the source file) and `simman campaign` CLI.
+
+## M4 — Terminal · M6 — Snapshots, rules, notifications
 
 See [project-brief.md](project-brief.md). Detailed plans are written here when each starts.
