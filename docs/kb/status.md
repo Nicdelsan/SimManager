@@ -4,10 +4,14 @@ _Last updated: 2026-11-13_
 
 ## Current milestone
 
-**M4 — integrated SSH terminal: in progress on `main`** (plan approved 2026-11-13,
-[roadmap.md#m4](roadmap.md#m4--integrated-ssh-terminal)). Done: step 1 (`open_pty`), step 2 (`terminal` service), step 3 (web endpoints), step 4 (terminal page), step 5 (entry points, quick actions), step 6 (cancel job).
-In parallel another agent builds M6 on branch `m6-snapshots` (migration `0005`,
-ADR `0006`); M4 uses migration `0006` / ADR `0007` if needed and assumptions from A400.
+**Next: M6 — snapshots, rules, notifications** (another agent on branch `m6-snapshots`,
+migration `0005`, ADR `0006`).
+
+- M4 — integrated SSH terminal: done 2026-11-13 on `main`
+  ([roadmap.md#m4](roadmap.md#m4--integrated-ssh-terminal),
+  [ADR 0007](../adr/0007-integrated-terminal.md)). Awaiting the user's manual check on
+  the real clusters (full-screen `vi`, `top`/`htop`, `less`, colours, Ctrl+C during
+  `sleep`, copy/paste, re-attach after F5, `module load`; A400 shells, A401 MaxSessions).
 
 - M3 — web UI: done 2026-11-13 on `main`
   ([roadmap.md#m3](roadmap.md#m3--web-ui)). Awaiting the user's manual check on the
@@ -101,9 +105,23 @@ M3 (2026-11-13):
 - `prompter-web`: password/OTP/confirmations in the browser, 300 s timeout →
   `AWAITING_AUTH`; `prompter: auto|cli|web`.
 
+M4 (2026-11-13):
+- `transport.open_pty` (login shell, folder checked over SFTP, optional tmux) on a
+  separate per-cluster pool `max_terminals` (3); `tmux ls` allowlisted (read-only).
+- Plugin `terminal` (web-only): sessions with 1 MiB replay buffer, single attachment with
+  takeover, orphan expiry (30 min), backpressure, one explicit reconnect when the cluster
+  awaits authentication; durable `terminal.opened/closed` (metadata only).
+- `ui-web`: `/api/terminals` + single-use tickets + `/ws/term/{id}`; page `/terminal`
+  (tabs, xterm.js 6.0.0, clipboard, re-attach after reload, tmux menu); entry points on
+  cluster cards and run detail; quick actions inserted without Enter; "Cancel job…" with
+  server-enforced confirmation (`run_mutating`, `action.*` events).
+- Tests: fake PTY shell in the test SSH server; transport, service, web (tickets,
+  Origin/Host/cookie, re-attach, auth prompt then shell, channel limit with the monitor
+  working, cancel job, no terminal content in logs/events). Headless Chrome smoke test.
+
 ## Not yet implemented
 
-Terminal (M4), snapshots, notifications. PBS is on standby (user decision 2026-11-13). Passphrase-protected keys in
+Snapshots, notifications (M6). PBS is on standby (user decision 2026-11-13). Passphrase-protected keys in
 the new OpenSSH format would need `bcrypt`: not added, the user has no passphrases.
 
 ## Known limitations
@@ -114,11 +132,15 @@ the new OpenSSH format would need `bcrypt`: not added, the user has no passphras
 
 ## Open questions for the user
 
-1. When a job is running: `simman monitor --once` + `simman jobs list --all` (verifies
+1. M4: which login shell runs on each cluster (A400 assumes bash/zsh); and a manual check
+   of the terminal on the real clusters (see "Current milestone").
+2. When a job is running: `simman monitor --once` + `simman jobs list --all` (verifies
    A2 on real lines); after a job ends on `hpc-national` the same verifies A7.
 
 ## Changelog
 
+- 2026-11-13 — M4 done: ADR 0007 (why the terminal does not break the read-only rule),
+  README terminal section, roadmap/architecture updated.
 - 2026-11-13 — M4 step 6: "Cancel job…" in the run detail and in the terminal toolbar.
   Server-enforced two steps: `POST /api/actions/job-cancel/prepare` (only active jobs
   known to SimManager; single-use `action_id`, 60 s) and `POST /api/actions/{id}/confirm`

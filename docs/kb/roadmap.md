@@ -79,8 +79,9 @@ Plan approved 2026-11-13 (branch `m5-campaigns`, migration `0004_campaigns.sql`)
 
 ## M4 — Integrated SSH terminal
 
-Plan approved 2026-11-13. The terminal is the user acting on the cluster; the monitor
-stays read-only (ADR 0007).
+Done 2026-11-13 (steps 1–6 + docs; see status.md changelog). Plan approved 2026-11-13.
+The terminal is the user acting on the cluster; the monitor stays read-only
+([ADR 0007](../adr/0007-integrated-terminal.md)).
 
 - `transport.open_pty(cols, rows, cwd, term, tmux)` -> `PtyChannel` (bytes in/out,
   `resize`, `close`, `exit_status`). Login shell: plain `shell` request, or

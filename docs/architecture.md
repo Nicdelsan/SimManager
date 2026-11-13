@@ -123,6 +123,6 @@ the solver state row is written last in a sync and acts as its commit marker.
 | M1 | Cluster profiles, SSH transport (key/agent/certificate/OTP), SLURM discovery, jobs/runs | done |
 | M2 | Incremental readers, CONVERGE/OpenFOAM parsers, time series | done |
 | M3 | Web UI (FastAPI, htmx, uPlot) | |
-| M4 | Integrated SSH terminal (xterm.js) | |
+| M4 | Integrated SSH terminal (xterm.js, [ADR 0007](adr/0007-integrated-terminal.md)) | done |
 | M5 | Excel campaigns | |
 | M6 | Input snapshots + diff + notes, detection rules, desktop notifications | |

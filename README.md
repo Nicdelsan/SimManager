@@ -63,6 +63,25 @@ residuals, progress and ETA), campaigns, clusters (Reconnect). Passwords and OTP
 are asked in a dialog in the browser while `serve` runs (`prompter: cli` in the config
 keeps them on the terminal); they are never stored or logged.
 
+### Terminal
+
+A terminal in the browser on the same SSH connection as the monitor: "Terminal" on a
+cluster card (home folder or a work root) or in a run detail (run folder). Terminals open
+in their own window with tabs; xterm.js, login shell (`module load` works), Ctrl+C copies
+a selection (otherwise interrupts), Ctrl+V pastes. Tabs opened from a run have quick
+actions (`cd`, `tail`/`less` the log, `squeue`/`sacct`, `vi` an input file) that write the
+command **without running it**; "Cancel job…" runs `scancel` after a confirmation and is
+recorded in the event log. A reloaded page re-attaches its terminals (recent output is
+replayed); terminals close when SimManager stops: use `tmux`/`screen` for long work.
+Typing and output are never logged. Per cluster in `clusters.yaml`:
+
+```yaml
+clusters:
+  my-cluster:
+    max_terminals: 3        # own SSH channels, never the monitor's (max_channels: 6)
+    terminal_tmux: false    # true: every new tab starts a new tmux session simman-<cluster>-<n>
+```
+
 ### Campaigns
 
 ```powershell
