@@ -11,9 +11,11 @@ needs one.
 
 ### M5 (branch m5-campaigns)
 
-- Plan approved 2026-11-13; `openpyxl` added, migration `0004_campaigns.sql` and
-  `contracts/campaign.py` (`campaign` v1, `campaign.manager` v1) added. Next: SQLite
-  `CampaignStore`, `campaign-excel` plugin, and `simman campaign` CLI.
+- Migration `0004_campaigns.sql`, `contracts/campaign.py` (`campaign` v1,
+  `campaign.manager` v1), and `campaign-sqlite` (`SqliteCampaignStore` in
+  `storage_sqlite/campaign.py`) implemented and tested.
+- Next: `campaign-excel` plugin (import/export, matching, state computation) and
+  `simman campaign` CLI.
 
 - M1 — SSH and SLURM discovery: done 2026-11-13. All three clusters pass
   `simman cluster test`; real job lines still to be seen (A2, A7).

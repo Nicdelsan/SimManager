@@ -11,12 +11,17 @@ from .scheduler_slurm import SlurmSchedulerPlugin
 from .solver_converge import ConvergeSolverPlugin
 from .solver_ingest import SolverIngestPlugin
 from .solver_openfoam import OpenFoamSolverPlugin
-from .storage_sqlite import SqliteStoragePlugin, SqliteTimeSeriesPlugin
+from .storage_sqlite import (
+    SqliteCampaignPlugin,
+    SqliteStoragePlugin,
+    SqliteTimeSeriesPlugin,
+)
 from .transport_ssh import SshTransportPlugin
 
 BUILTIN_PLUGINS: tuple[type[Plugin], ...] = (
     SqliteStoragePlugin,
     SqliteTimeSeriesPlugin,
+    SqliteCampaignPlugin,
     CliPrompterPlugin,
     SshTransportPlugin,
     SlurmSchedulerPlugin,
