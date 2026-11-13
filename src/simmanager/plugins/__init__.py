@@ -7,6 +7,7 @@ from simmanager.kernel import Plugin
 from .campaign_excel import CampaignExcelPlugin
 from .example import ExampleClockPlugin, ExampleTickerPlugin
 from .monitor import MonitorPlugin
+from .notifier import DesktopNotifierPlugin, NotifierRouterPlugin
 from .prompter_cli import CliPrompterPlugin
 from .rules import RulesPlugin
 from .scheduler_slurm import SlurmSchedulerPlugin
@@ -37,6 +38,8 @@ BUILTIN_PLUGINS: tuple[type[Plugin], ...] = (
     MonitorPlugin,
     SnapshotPlugin,
     RulesPlugin,
+    DesktopNotifierPlugin,
+    NotifierRouterPlugin,
     ConvergeSolverPlugin,
     OpenFoamSolverPlugin,
     SolverIngestPlugin,

@@ -105,6 +105,7 @@ the new OpenSSH format would need `bcrypt`: not added, the user has no passphras
 
 ## M6 (branch m6-snapshots)
 
+- 2026-11-13 — Step 5: implemented `notifier` router + `notifier-desktop` (`desktop-notifier`), immediate-first + coalescing batching, quiet hours, rate limit, secret-free event formatting, and silent fallback.
 - 2026-11-13 — Step 4: implemented `rules` plugin (`evaluator.py`, `plugin.py`) with hierarchical config merge (`global -> campaign -> case`), incremental series evaluation (`courant_high`, `residual_high` with warmup + restart reset, `monitor_range`), `nan_inf`, `solver_error`, `job_failed` via `storage.event_appended`, adaptive `stall` (backfill/disconnect-safe), and restart deduplication.
 - 2026-11-13 — Step 3: implemented `snapshot` plugin (`collector.py`, `diff.py`, `plugin.py`) with `storage.event_appended` + `monitor.polled` auto-capture, `queued -> running` effective replacement, late-file flagging (A300), background oversize SHA-256 + hash reuse, semantic YAML/OpenFOAM diffs, run notes (`run.note_changed`).
 - 2026-11-13 — Step 2: implemented `SqliteSnapshotStore` (`snapshot-sqlite`) and `SqliteRuleStore` (`rules-sqlite`) sharing SQLite connection and `write_lock`.
