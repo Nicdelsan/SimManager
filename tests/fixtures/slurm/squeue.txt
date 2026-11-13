@@ -1,0 +1,5 @@
+18105|spray_case_a|RUNNING|1-12:17:07|365-00:00:00|1|debug|2026-11-12T03:05:26|2026-11-12T03:05:26|node02|/work/user1/spray/case_a
+18120|queued case|PENDING|0:00|1-00:00:00|2|debug|2026-11-13T15:00:00|N/A|(Resources)|/work/user1/spray/case b
+58444781_35|sweep_s61369|PENDING|0:00|UNLIMITED|1|gpu_prod|2026-09-24T03:56:51|N/A|(job_requeued_in_held_state)|/scratch/user2/sweep
+18121|ending|COMPLETING|15:02|30:00|1|debug|2026-11-13T14:00:00|2026-11-13T14:01:00|node03|/work/user1/x
+broken|line

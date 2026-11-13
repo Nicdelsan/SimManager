@@ -1,0 +1,38 @@
+JobId=58479283 ArrayJobId=58444781 ArrayTaskId=35 ArrayTaskThrottle=1000 JobName=sweep_s61369
+   UserId=user2(2002) GroupId=group2(2000) MCS_label=N/A
+   Priority=0 Nice=0 Account=proj_a QOS=normal
+   JobState=PENDING Reason=job_requeued_in_held_state Dependency=(null)
+   Requeue=1 Restarts=1 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:00:00 TimeLimit=1-00:00:00 TimeMin=N/A
+   SubmitTime=2026-09-24T03:56:51 EligibleTime=2026-09-24T03:58:52
+   AccrueTime=Unknown
+   StartTime=Unknown EndTime=Unknown Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2026-09-23T19:54:19 Scheduler=Main
+   Partition=gpu_prod AllocNode:Sid=login01:12345
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=
+   NumNodes=1 NumCPUs=8 NumTasks=1 CPUs/Task=8 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=8,mem=120G,node=1,billing=8,gres/gpu=1
+   AllocTRES=(null)
+   Socks/Node=* NtasksPerN:B:S:C=1:0:*:* CoreSpec=*
+   MinCPUsNode=8 MinMemoryNode=120G MinTmpDiskNode=0
+   Features=(null) DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) LicensesAlloc=(null) Network=(null)
+   Command=/scratch/user2/sweep/run.sh
+   WorkDir=/scratch/user2/sweep
+   Comment=BUDGET 01:53:47 prolog controller: insufficient or expired budget 
+   StdErr=/scratch/user2/sweep/logs/%A_%a.err
+   StdIn=/dev/null
+   StdOut=/scratch/user2/sweep/logs/%A_%a.out
+   TresPerNode=gres/gpu:1
+   TresPerTask=cpu=8
+
+JobId=58444781 ArrayJobId=58444781 ArrayTaskId=40-44%2 ArrayTaskThrottle=2 JobName=sweep_s61369
+   UserId=user2(2002) GroupId=group2(2000) MCS_label=N/A
+   JobState=PENDING Reason=JobArrayTaskLimit Dependency=(null)
+   RunTime=00:00:00 TimeLimit=1-00:00:00 TimeMin=N/A
+   SubmitTime=2026-09-24T03:56:51 EligibleTime=2026-09-24T03:58:52
+   StartTime=Unknown EndTime=Unknown Deadline=N/A
+   Partition=gpu_prod
+   WorkDir=/scratch/user2/sweep
+   StdOut=/scratch/user2/sweep/logs/%A_%a.out

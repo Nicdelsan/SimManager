@@ -5,7 +5,7 @@ Local monitor for CFD simulations (CONVERGE CFD, OpenFOAM) running on remote HPC
 files and shows progress, state and notifications. It never builds setups, edits remote files
 or submits jobs on its own.
 
-> Status: **M0 — kernel and storage**. SSH, scheduler discovery, parsers and the web UI
+> Status: **M1 — SSH and SLURM job discovery**. Solver parsers, plots and the web UI
 > arrive in the next milestones (see `docs/architecture.md`).
 
 ## Install
@@ -28,6 +28,30 @@ uv run simman config paths          # where config, database and logs live
 uv run simman serve                 # run until Ctrl+C (web UI from M3)
 uv run simman events -n 20          # last entries of the durable event log
 ```
+
+### Clusters
+
+Profiles live in `clusters.yaml` next to the user config (never in the repository).
+Anything already in `~/.ssh/config` (HostName, User, IdentityFile, ProxyJump) is reused.
+
+```powershell
+uv run simman cluster add uni-a --ssh-host uni-a --timezone Europe/Rome
+uv run simman cluster add hpc --host login.hpc.example.org --user me `
+    --key C:\path\to\my_cert_key `
+    --renew-command "C:\path\to\renew_certificate.bat"
+uv run simman cluster list
+uv run simman cluster test uni-a    # connects and checks the SLURM commands
+uv run simman monitor --once        # poll every cluster once
+uv run simman jobs list --all       # what the monitor recorded
+uv run simman serve                 # keep polling (60 s running / 180 s queued / 300 s idle)
+```
+
+SimManager only runs read-only commands (`squeue`, `sacct`, `scontrol show`, `ls`, ...).
+Host keys must already be in `known_hosts` (connect once with `ssh`). When a login
+needs a human (password, OTP, expired SSH certificate) it asks on the terminal and never
+retries a rejected login on its own; passwords are never stored. For short-lived SSH
+certificates (`<key>-cert.pub`) it checks the expiry first and offers to run
+`cert_renew_command`.
 
 ### Configuration
 

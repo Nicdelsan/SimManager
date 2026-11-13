@@ -22,11 +22,27 @@ Keep the scheduler's original string in `raw_state`.
 Commands (all read-only, explicit user — no `$USER`, no shell):
 
 ```
-squeue -h -u <user> -o "%i|%j|%T|%M|%l|%D|%P|%V|%S|%R|%Z"     # work dir last
-sacct -X -n -P -j <ids> -o JobID,JobName,State,ExitCode,Elapsed,Start,End,WorkDir
+squeue -h -r -u <user> -o "%i|%j|%T|%M|%l|%D|%P|%V|%S|%R|%Z"  # -r: one line per array task
+sacct -X -n -P -j <ids> -o JobID,JobName,State,ExitCode,Elapsed,Submit,Start,End,WorkDir,Partition,NNodes,Timelimit,User,NodeList
 scontrol show job <id>
 sinfo --version
 ```
+
+`<user>` is the login name of the SSH session. `%R` is the node list for running jobs and
+`(Reason)` for pending ones. Durations: `[D-]HH:MM:SS`, `MM:SS`, bare minutes,
+`UNLIMITED`. Without accounting `sacct` prints `Slurm accounting storage is disabled`.
+
+State normalization (raw string kept in `raw_state`; `CANCELLED by <uid>` → first word):
+queued = PENDING, REQUEUED, REQUEUE_HOLD, REQUEUE_FED, RESV_DEL_HOLD, SPECIAL_EXIT;
+running = RUNNING, CONFIGURING, SUSPENDED, STOPPED, SIGNALING, RESIZING, STAGE_OUT;
+completing = COMPLETING; completed = COMPLETED; failed = FAILED, NODE_FAIL,
+OUT_OF_MEMORY, BOOT_FAIL, DEADLINE, PREEMPTED, REVOKED; cancelled = CANCELLED;
+timeout = TIMEOUT; anything else = unknown. A job that leaves the queue and is unknown
+to both sacct and scontrol is recorded as `unknown`.
+
+Array job ids: squeue/sacct show `<array>_<task>`; scontrol shows its own `JobId` plus
+`ArrayJobId`/`ArrayTaskId` → normalized to `<array>_<task>` (`<array>_[<range>]` for
+a pending range).
 
 `scontrol show job` output (verified on Slurm 18.08 and 25.05): records separated by a blank
 line, `Key=Value` tokens separated by spaces over indented lines. Useful keys: `JobId`,

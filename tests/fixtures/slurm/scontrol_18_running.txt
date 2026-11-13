@@ -1,0 +1,56 @@
+JobId=18105 JobName=spray_case_a
+   UserId=user1(1001) GroupId=group1(1000) MCS_label=N/A
+   Priority=4294901720 Nice=0 Account=(null) QOS=(null)
+   JobState=RUNNING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=1-12:17:07 TimeLimit=365-00:00:00 TimeMin=N/A
+   SubmitTime=2026-11-12T03:05:26 EligibleTime=2026-11-12T03:05:26
+   AccrueTime=Unknown
+   StartTime=2026-11-12T03:05:26 EndTime=2027-11-12T03:05:26 Deadline=N/A
+   PreemptTime=None SuspendTime=None SecsPreSuspend=0
+   LastSchedEval=2026-11-12T03:05:26
+   Partition=debug AllocNode:Sid=login:21209
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=node02
+   BatchHost=node02
+   NumNodes=1 NumCPUs=20 NumTasks=20 CPUs/Task=1 ReqB:S:C:T=0:0:*:*
+   TRES=cpu=20,mem=60000M,node=1,billing=20
+   Socks/Node=* NtasksPerN:B:S:C=20:0:*:* CoreSpec=*
+   MinCPUsNode=20 MinMemoryNode=60000M MinTmpDiskNode=0
+   Features=(null) DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) Network=(null)
+   Command=/work/user1/spray/case_a/launch_converge.sh
+   WorkDir=/work/user1/spray/case_a
+   StdErr=/work/user1/spray/case_a/%x_%n_18105.Qtxt
+   StdIn=/dev/null
+   StdOut=/work/user1/spray/case_a/%x_%n_18105.Qtxt
+   Power=
+
+JobId=18115 JobName=20C
+   UserId=user1(1001) GroupId=group1(1000) MCS_label=N/A
+   Priority=4294901710 Nice=0 Account=(null) QOS=(null)
+   JobState=COMPLETED Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=02:47:34 TimeLimit=365-00:00:00 TimeMin=N/A
+   SubmitTime=2026-11-13T12:34:59 EligibleTime=2026-11-13T12:34:59
+   AccrueTime=Unknown
+   StartTime=2026-11-13T12:34:59 EndTime=2026-11-13T15:22:33 Deadline=N/A
+   PreemptTime=None SuspendTime=None SecsPreSuspend=0
+   LastSchedEval=2026-11-13T12:34:59
+   Partition=debug AllocNode:Sid=login:25630
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=node05
+   BatchHost=node05
+   NumNodes=1 NumCPUs=20 NumTasks=20 CPUs/Task=1 ReqB:S:C:T=0:0:*:*
+   TRES=cpu=20,mem=60000M,node=1,billing=20
+   Socks/Node=* NtasksPerN:B:S:C=20:0:*:* CoreSpec=*
+   MinCPUsNode=20 MinMemoryNode=60000M MinTmpDiskNode=0
+   Features=(null) DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) Network=(null)
+   Command=/work/user1/test/case b/launch_converge.sh
+   WorkDir=/work/user1/test/case b
+   StdErr=/work/user1/test/case b/%x_%n_18115.Qtxt
+   StdIn=/dev/null
+   StdOut=/work/user1/test/case b/%x_%n_18115.Qtxt
+   Power=
+
