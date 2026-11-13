@@ -106,6 +106,17 @@ STOPWORDS = {
     "cpu",
     "access",
     "file",
+    # shells and interpreters (e.g. from #!/bin/bash in batch scripts)
+    "bash",
+    "dash",
+    "zsh",
+    "csh",
+    "tcsh",
+    "ksh",
+    "env",
+    "python",
+    "python3",
+    "perl",
     # CFD / project vocabulary that appears in paths but is not private
     "converge",
     "openfoam",

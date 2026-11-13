@@ -11,13 +11,15 @@ from typing import Any, ClassVar
 from pydantic import BaseModel, ConfigDict, Field
 
 from simmanager.contracts import ingest as contract
+from simmanager.contracts import monitor as monitor_contract
 from simmanager.contracts import solver as solver_contract
 from simmanager.contracts import storage as storage_contract
 from simmanager.contracts import timeseries as ts_contract
 from simmanager.contracts import transport as transport_contract
 from simmanager.contracts.ingest import SyncRunResult
+from simmanager.contracts.monitor import PollReport
 from simmanager.contracts.solver import Solver, SolverStatusUpdate, WatchedFile
-from simmanager.contracts.storage import Storage
+from simmanager.contracts.storage import JobRecord, Storage
 from simmanager.contracts.timeseries import RunSolverState, SolverState, TimeSeriesStore
 from simmanager.contracts.transport import RemoteSession, Transport, TransportError
 from simmanager.kernel import Context, Plugin
@@ -44,6 +46,7 @@ class _TrackedRun:
     solver_kind: str | None = None
     stdout_path: str | None = None
     terminal: bool = False
+    last_job_state: str = ""
 
 
 class SolverIngestor:
@@ -68,6 +71,7 @@ class SolverIngestor:
             )
         )
         self._tracked: dict[int, _TrackedRun] = {}
+        self._terminal_synced: set[int] = set()
         self._backfill_tasks: dict[tuple[int, str], asyncio.Task[None]] = {}
         self._run_locks: dict[int, asyncio.Lock] = {}
 
@@ -356,6 +360,85 @@ class SolverIngestor:
             tracked.terminal = True
         self._spawn_sync(tracked)
 
+    async def on_monitor_polled(self, payload: Any) -> None:
+        if isinstance(payload, PollReport):
+            if not payload.ok:
+                return
+            cluster_id = payload.cluster_id
+        elif isinstance(payload, Mapping):
+            if not payload.get("ok"):
+                return
+            cid = payload.get("cluster_id")
+            if not isinstance(cid, str):
+                return
+            cluster_id = cid
+        else:
+            return
+
+        records = await self._storage.jobs(cluster_id=cluster_id, limit=500)
+        for rec in records:
+            await self._reconcile_job(rec, spawn=True)
+
+    async def _bootstrap_active_runs(self) -> None:
+        records = await self._storage.jobs(active=True, limit=500)
+        for rec in records:
+            await self._reconcile_job(rec, spawn=False)
+
+    async def _reconcile_job(self, rec: JobRecord, *, spawn: bool) -> None:
+        if rec.run_id is None or not rec.info.work_dir:
+            return
+        run_id = rec.run_id
+        state_str = str(rec.info.state)
+
+        if rec.active and not rec.info.state.terminal:
+            tracked = self._tracked.get(run_id)
+            if tracked is None:
+                tracked = _TrackedRun(
+                    run_id=run_id,
+                    cluster_id=rec.cluster_id,
+                    work_dir=rec.info.work_dir,
+                    stdout_path=rec.info.stdout_path,
+                    last_job_state=state_str,
+                )
+                self._tracked[run_id] = tracked
+                if spawn:
+                    self._spawn_sync(tracked)
+            else:
+                if rec.info.stdout_path:
+                    tracked.stdout_path = rec.info.stdout_path
+                if state_str != tracked.last_job_state:
+                    tracked.last_job_state = state_str
+                    if spawn:
+                        self._spawn_sync(tracked)
+            return
+
+        tracked = self._tracked.get(run_id)
+        if tracked is not None:
+            tracked.terminal = True
+            tracked.last_job_state = state_str
+            if rec.info.stdout_path:
+                tracked.stdout_path = rec.info.stdout_path
+            if spawn:
+                self._spawn_sync(tracked)
+            return
+
+        if run_id in self._terminal_synced:
+            return
+        if await self._ts.get_run_solver_state(run_id) is not None:
+            self._terminal_synced.add(run_id)
+            return
+        if spawn:
+            tracked = _TrackedRun(
+                run_id=run_id,
+                cluster_id=rec.cluster_id,
+                work_dir=rec.info.work_dir,
+                stdout_path=rec.info.stdout_path,
+                terminal=True,
+                last_job_state=state_str,
+            )
+            self._tracked[run_id] = tracked
+            self._spawn_sync(tracked)
+
     def _spawn_sync(self, tracked: _TrackedRun) -> None:
         async def _do_sync() -> None:
             try:
@@ -382,10 +465,12 @@ class SolverIngestor:
             stdout_path=tracked.stdout_path,
         )
         if tracked.terminal:
+            self._terminal_synced.add(tracked.run_id)
             self._tracked.pop(tracked.run_id, None)
 
     async def poll_loop(self) -> None:
         try:
+            await self._bootstrap_active_runs()
             while not self._ctx.closed:
                 await asyncio.sleep(self._cfg.poll_interval_s)
                 for tracked in list(self._tracked.values()):
@@ -492,5 +577,6 @@ class SolverIngestPlugin(Plugin):
         ingestor = SolverIngestor(ctx, storage, ts, ctx.config)
         ctx.on("run.created", ingestor.on_run_created)
         ctx.on("job.state_changed", ingestor.on_job_state_changed)
+        ctx.on(monitor_contract.POLLED_EVENT, ingestor.on_monitor_polled)
         ctx.task(ingestor.poll_loop(), name="poll-loop")
         return ingestor

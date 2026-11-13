@@ -5,14 +5,22 @@ from __future__ import annotations
 from simmanager.kernel import Plugin
 
 from .example import ExampleClockPlugin, ExampleTickerPlugin
+from .monitor import MonitorPlugin
+from .prompter_cli import CliPrompterPlugin
+from .scheduler_slurm import SlurmSchedulerPlugin
 from .solver_converge import ConvergeSolverPlugin
 from .solver_ingest import SolverIngestPlugin
 from .solver_openfoam import OpenFoamSolverPlugin
 from .storage_sqlite import SqliteStoragePlugin, SqliteTimeSeriesPlugin
+from .transport_ssh import SshTransportPlugin
 
 BUILTIN_PLUGINS: tuple[type[Plugin], ...] = (
     SqliteStoragePlugin,
     SqliteTimeSeriesPlugin,
+    CliPrompterPlugin,
+    SshTransportPlugin,
+    SlurmSchedulerPlugin,
+    MonitorPlugin,
     ConvergeSolverPlugin,
     OpenFoamSolverPlugin,
     SolverIngestPlugin,

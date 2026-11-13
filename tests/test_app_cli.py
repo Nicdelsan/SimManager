@@ -66,12 +66,15 @@ async def test_examples_run_end_to_end() -> None:
     )
     kernel = await start_kernel(prepare())
     states = {i.name: i.state for i in kernel.info()}
+    assert set(states.values()) == {PluginState.ACTIVE}
     assert {
-        "storage-sqlite": PluginState.ACTIVE,
-        "timeseries-sqlite": PluginState.ACTIVE,
-        "example-clock": PluginState.ACTIVE,
-        "example-ticker": PluginState.ACTIVE,
-    }.items() <= states.items()
+        "storage-sqlite",
+        "timeseries-sqlite",
+        "solver-ingest",
+        "monitor",
+        "example-clock",
+        "example-ticker",
+    } <= set(states)
     storage = kernel.services.require("storage")
     import asyncio
 

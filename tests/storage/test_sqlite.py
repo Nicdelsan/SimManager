@@ -86,3 +86,34 @@ async def test_unwritable_path_fails_plugin_only(tmp_path: Path) -> None:
     await kernel.add(SqliteStoragePlugin)
     assert kernel.state("storage-sqlite") is PluginState.FAILED
     await kernel.stop()
+
+
+async def test_upsert_job_creates_run_and_keeps_known_fields(db_path: str) -> None:
+    from simmanager.contracts.scheduler import JobInfo, JobState
+
+    storage = await SqliteStorage.open(db_path)
+    queued = JobInfo(
+        job_id="7_1",
+        name="case",
+        state=JobState.QUEUED,
+        raw_state="PENDING",
+        work_dir="/work/user1/case_a",
+        stdout_path="/work/user1/case_a/out.txt",
+    )
+    first = await storage.upsert_job("c", queued, active=True)
+    assert first.created and first.previous is None and first.record.run_id is not None
+
+    finished = JobInfo(job_id="7_1", name="", state=JobState.COMPLETED, raw_state="COMPLETED")
+    second = await storage.upsert_job("c", finished, active=False)
+    assert not second.created and second.previous is not None
+    assert second.previous.state is JobState.QUEUED
+    assert second.record.run_id == first.record.run_id  # same run
+    info = second.record.info
+    assert info.state is JobState.COMPLETED and info.name == "case"
+    assert info.work_dir == "/work/user1/case_a"  # unknown in the update: kept
+    assert info.stdout_path == "/work/user1/case_a/out.txt"
+
+    assert [r.info.job_id for r in await storage.jobs(active=False)] == ["7_1"]
+    assert await storage.jobs(active=True) == []
+    assert await storage.jobs(cluster_id="other") == []
+    await storage.close()

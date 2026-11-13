@@ -8,11 +8,15 @@ from typing import Any
 import pytest
 
 from simmanager.contracts import ingest as ingest_contract
+from simmanager.contracts import monitor as monitor_contract
+from simmanager.contracts import scheduler as scheduler_contract
 from simmanager.contracts import storage as storage_contract
 from simmanager.contracts import timeseries as ts_contract
 from simmanager.contracts import transport as transport_contract
 from simmanager.contracts.clusters import ClusterProfile
 from simmanager.contracts.ingest import IngestService
+from simmanager.contracts.monitor import Monitor
+from simmanager.contracts.scheduler import JobInfo, JobState
 from simmanager.contracts.storage import Storage
 from simmanager.contracts.timeseries import SolverState, TimeSeriesStore
 from simmanager.contracts.transport import (
@@ -21,6 +25,7 @@ from simmanager.contracts.transport import (
     RemoteSession,
 )
 from simmanager.kernel import Context, Kernel, Plugin, PluginState
+from simmanager.plugins.monitor import MonitorPlugin
 from simmanager.plugins.solver_converge import ConvergeSolverPlugin
 from simmanager.plugins.solver_ingest import SolverIngestPlugin
 from simmanager.plugins.solver_openfoam import OpenFoamSolverPlugin
@@ -31,12 +36,17 @@ FIXTURES_ROOT = Path(__file__).resolve().parents[1] / "fixtures"
 
 
 class _FakeTransport:
-    def __init__(self, sessions: dict[str, RemoteSession]) -> None:
+    def __init__(
+        self,
+        sessions: dict[str, RemoteSession],
+        clusters: dict[str, ClusterProfile] | None = None,
+    ) -> None:
         self._sessions = sessions
+        self._clusters = clusters or {}
         self.fail_next: ClusterUnavailableError | None = None
 
     def clusters(self) -> Mapping[str, ClusterProfile]:
-        return {}
+        return self._clusters
 
     async def session(self, cluster_id: str) -> RemoteSession:
         if self.fail_next is not None:
@@ -224,3 +234,123 @@ async def test_m1_bus_events_and_transport_resilience(tmp_path: Path) -> None:
     assert (await ts2.get_run_solver_state(10)) is not None
     assert len(await ts2.list_series(10)) == len(series_before)
     await kernel2.stop()
+
+
+async def test_monitor_polled_uses_runs_and_events(tmp_path: Path) -> None:
+    conv_session = LocalRemoteSession(
+        FIXTURES_ROOT / "converge", cluster_id="c1", virtual_root="/case"
+    )
+    profiles = {"c1": ClusterProfile(host="cluster.example", user="user1")}
+    fake_transport = _FakeTransport({"c1": conv_session}, clusters=profiles)
+
+    class _FakeScheduler:
+        kind = "slurm"
+
+        def __init__(self) -> None:
+            self.active_jobs = [
+                JobInfo(
+                    job_id="101",
+                    name="conv_case",
+                    state=JobState.RUNNING,
+                    raw_state="RUNNING",
+                    user="user1",
+                    work_dir="/case",
+                    stdout_path="/case/logout.txt",
+                )
+            ]
+            self.finals: dict[str, JobInfo] = {}
+
+        async def list_active(self, session: RemoteSession, user: str, tz: Any) -> list[JobInfo]:
+            return list(self.active_jobs)
+
+        async def final_states(
+            self, session: RemoteSession, job_ids: Any, tz: Any
+        ) -> dict[str, JobInfo]:
+            return {jid: self.finals[jid] for jid in job_ids if jid in self.finals}
+
+        def cancel_argv(self, job_id: str) -> list[str]:
+            return ["scancel", job_id]
+
+    scheduler = _FakeScheduler()
+
+    class FakeTransportPlugin(Plugin):
+        name = "fake-transport"
+        provides = transport_contract.SERVICE_KEY
+        contract_version = transport_contract.CONTRACT_VERSION
+
+        def apply(self, ctx: Context) -> _FakeTransport:
+            return fake_transport
+
+    class FakeSchedulerPlugin(Plugin):
+        name = "fake-scheduler"
+        provides = f"{scheduler_contract.SERVICE_PREFIX}slurm"
+        contract_version = scheduler_contract.CONTRACT_VERSION
+
+        def apply(self, ctx: Context) -> _FakeScheduler:
+            return scheduler
+
+    db_path = str(tmp_path / "sim.db")
+    kernel = Kernel(
+        {
+            "storage-sqlite": {"path": db_path},
+            "monitor": {"loop": False},
+            "solver-ingest": {"poll_interval_s": 60.0},
+        }
+    )
+    await kernel.add(
+        SqliteStoragePlugin,
+        SqliteTimeSeriesPlugin,
+        ConvergeSolverPlugin,
+        FakeTransportPlugin,
+        FakeSchedulerPlugin,
+        MonitorPlugin,
+        SolverIngestPlugin,
+    )
+    assert kernel.state("monitor") is PluginState.ACTIVE
+    assert kernel.state("solver-ingest") is PluginState.ACTIVE
+
+    monitor: Monitor = kernel.services.require(monitor_contract.SERVICE_KEY)
+    storage: Storage = kernel.services.require(storage_contract.SERVICE_KEY)
+    ts: TimeSeriesStore = kernel.services.require(ts_contract.SERVICE_KEY)
+
+    # First monitor poll creates job + run in DB and emits monitor.polled
+    report1 = await monitor.poll("c1")
+    assert report1.discovered == 1
+
+    jobs = await storage.jobs(cluster_id="c1")
+    assert len(jobs) == 1
+    run_id = jobs[0].run_id
+    assert run_id is not None
+
+    async def _run_ingested() -> bool:
+        return (await ts.get_run_solver_state(run_id)) is not None
+
+    await _wait_until(_run_ingested)
+    state = await ts.get_run_solver_state(run_id)
+    assert state is not None
+    assert state.solver == "converge"
+    assert len(await ts.list_series(run_id)) > 0
+
+    # Job finishes on second poll -> final sync marks tracked run completed/removed
+    scheduler.active_jobs = []
+    scheduler.finals = {
+        "101": JobInfo(
+            job_id="101",
+            name="conv_case",
+            state=JobState.COMPLETED,
+            raw_state="COMPLETED",
+            user="user1",
+            work_dir="/case",
+            stdout_path="/case/logout.txt",
+        )
+    }
+    report2 = await monitor.poll("c1")
+    assert report2.changed == 1
+
+    ingestor: Any = kernel.services.require(ingest_contract.SERVICE_KEY)
+
+    async def _is_terminal_removed() -> bool:
+        return run_id not in ingestor._tracked and run_id in ingestor._terminal_synced
+
+    await _wait_until(_is_terminal_removed)
+    await kernel.stop()
