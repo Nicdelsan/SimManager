@@ -22,7 +22,7 @@ def _write_user_config(text: str) -> None:
 
 def test_defaults_enable_storage_disable_examples() -> None:
     setup = prepare()
-    assert "storage-sqlite" in [c.name for c in setup.enabled]
+    assert {"storage-sqlite", "timeseries-sqlite"} <= {c.name for c in setup.enabled}
     assert set(setup.disabled) == {"example-clock", "example-ticker"}
     assert setup.config.origins[("plugins", "storage-sqlite", "enabled")] == "defaults"
 
@@ -65,11 +65,13 @@ async def test_examples_run_end_to_end() -> None:
         "  example-ticker: {enabled: true}\n"
     )
     kernel = await start_kernel(prepare())
-    assert {i.name: i.state for i in kernel.info()} == {
+    states = {i.name: i.state for i in kernel.info()}
+    assert {
         "storage-sqlite": PluginState.ACTIVE,
+        "timeseries-sqlite": PluginState.ACTIVE,
         "example-clock": PluginState.ACTIVE,
         "example-ticker": PluginState.ACTIVE,
-    }
+    }.items() <= states.items()
     storage = kernel.services.require("storage")
     import asyncio
 

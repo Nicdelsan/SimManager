@@ -42,8 +42,11 @@ packages = ["src/simmanager"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-addopts = "-ra"
+addopts = "-ra -m 'not slow'"
 faulthandler_timeout = 30
+markers = [
+    "slow: slow integration tests against local samples/ files (run with -m slow)",
+]
 
 [tool.ruff]
 line-length = 100

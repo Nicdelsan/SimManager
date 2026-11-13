@@ -50,6 +50,14 @@ class SqliteStorage:
             raise
         return cls(db)
 
+    @property
+    def connection(self) -> aiosqlite.Connection:
+        return self._db
+
+    @property
+    def write_lock(self) -> asyncio.Lock:
+        return self._write_lock
+
     async def close(self) -> None:
         await self._db.close()
 

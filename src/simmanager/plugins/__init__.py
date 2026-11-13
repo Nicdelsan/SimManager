@@ -5,10 +5,11 @@ from __future__ import annotations
 from simmanager.kernel import Plugin
 
 from .example import ExampleClockPlugin, ExampleTickerPlugin
-from .storage_sqlite import SqliteStoragePlugin
+from .storage_sqlite import SqliteStoragePlugin, SqliteTimeSeriesPlugin
 
 BUILTIN_PLUGINS: tuple[type[Plugin], ...] = (
     SqliteStoragePlugin,
+    SqliteTimeSeriesPlugin,
     ExampleClockPlugin,
     ExampleTickerPlugin,
 )

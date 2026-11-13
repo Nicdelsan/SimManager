@@ -2,6 +2,20 @@
 
 _Last updated: 2026-11-13_
 
+## M2 (branch m2-parsers)
+
+In progress since 2026-11-13 (parallel worktree on branch `m2-parsers`, separate from M1 on `main`).
+Plan: [roadmap.md#m2](roadmap.md#m2--incremental-readers-and-parsers).
+
+### Implemented in M2 so far
+
+- `contracts/timeseries.py` (`timeseries` v1): `FileCursor`, `SeriesKey`, `SeriesMeta`, `SeriesPoints`, `RunSolverState`, `TimeSeriesStore` protocol.
+- `storage_sqlite`: migration `0003_timeseries.sql` (`file_cursors`, `series`, `sample_chunks` with float64 `array('d')` blobs + 16:1 and 256:1 min/max downsampled levels, `run_solver_state`) and `timeseries-sqlite` plugin (`SqliteTimeSeriesStore`) sharing the single SQLite connection.
+
+### To wire at M1+M2 merge
+
+- `0003_timeseries.sql` stores `run_id INTEGER NOT NULL` without a hard `FOREIGN KEY REFERENCES runs(id)` because M1 migration `0002` lives on `main`; add the FK check/migration after merging M1 and M2.
+
 ## Current milestone
 
 **M1 — SSH and SLURM discovery** (in progress since 2026-11-13).
