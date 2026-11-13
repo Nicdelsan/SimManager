@@ -51,6 +51,19 @@ reference, so they cannot deadlock it.
   warnings on the console.
 - `cli/main.py`: `simman` (Typer).
 
+## Contracts (`contracts/`)
+
+Consumers import only these modules, never plugin implementations. Each has a
+`CONTRACT_VERSION` (major); a breaking change bumps it and is named in the commit message.
+
+| Module | Service key | Since | Content |
+|---|---|---|---|
+| `storage.py` | `storage` | M0 | Append-only event log (`append_event`, `events`, `latest_events`). |
+| `clusters.py` | — (data) | M1 | `ClusterProfile` / `ClustersFile` (clusters.yaml), `PollConfig`. |
+| `transport.py` | `transport` | M1 | `Transport.session/state/reset/clusters`; `RemoteSession.run_readonly/run_mutating/stat/listdir/read_range`; `ConnectionState`; errors `TransportError`, `ClusterUnavailableError`, `CommandNotAllowedError`; bus event `transport.state`. |
+| `auth.py` | `auth.prompter` | M1 | `AuthPrompter.ask(AuthRequest)` / `confirm`: passwords, passphrases, OTP, yes/no. |
+| `scheduler.py` | `scheduler.<kind>` | M1 | `JobState`, `JobInfo`, `Scheduler.list_active/final_states/cancel_argv` (stateless; receives the `RemoteSession`). |
+
 ## Storage (`plugins/storage_sqlite`)
 
 SQLite in WAL mode via `aiosqlite`, hand-written SQL, numbered migrations in

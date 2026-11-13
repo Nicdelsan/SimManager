@@ -4,8 +4,11 @@ _Last updated: 2026-11-13_
 
 ## Current milestone
 
-**M1 — SSH and SLURM discovery** (not started; waiting for user go-ahead).
+**M1 — SSH and SLURM discovery** (in progress since 2026-11-13).
 Plan: [roadmap.md#m1](roadmap.md#m1--ssh-and-slurm-discovery).
+M1 contracts are committed (`contracts/clusters.py`, `transport.py`, `auth.py`,
+`scheduler.py`) so that M2 can start in parallel in a separate worktree; the plugins that
+implement them are still being written.
 
 ## What works (M0, done 2026-11-13)
 
@@ -29,6 +32,9 @@ snapshots, notifications. PBS is on standby (user decision 2026-11-13).
    [domain.md](domain.md#slurm). Otherwise fixtures stay synthetic and marked as assumptions.
 
 ## Changelog
+
+- 2026-11-13 — M1 contracts committed (clusters, transport, auth, scheduler) + dependencies
+  `asyncssh`, `tzdata` (Windows only, for IANA time zones). Plugins pending.
 
 - 2026-11-13 — `tools/dev_setup.py` + Claude Code SessionStart hook: git hooks enabled and
   privacy denylist generated automatically from local sources on every machine.

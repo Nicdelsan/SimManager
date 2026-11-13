@@ -60,6 +60,10 @@ hosts with `cluster.example.org`; accounts with `ACCOUNT_X`; drop other users' j
 
 - Small, descriptive commits; KB updated in the same commit (pre-commit hook checks
   `src/` → `docs/kb/`). Hooks are enabled by `tools/dev_setup.py` (automatic in Claude Code).
+- **Contract changes are stated explicitly in the commit message** (agreed 2026-11-13):
+  a `Contract changes:` paragraph naming each module under `src/simmanager/contracts/`,
+  what changed, and whether `CONTRACT_VERSION` was bumped. Other agents work in parallel
+  worktrees on top of these contracts.
 - Never push or force-push unless the user asks. Never bypass hooks unless the user asks.
 - Line endings normalized to LF (`.gitattributes`).
 
