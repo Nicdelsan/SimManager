@@ -6,6 +6,7 @@ import * as ws from "../ws.js";
 import { Plot, isResidual } from "../plot.js";
 import { h, clear, debounce, basename, fmtDuration, fmtRough, fmtTime, pct, progressBar, stateBadge } from "../util.js";
 import { eventItem, listen } from "./common.js";
+import { openTerminal } from "../terminal/open.js";
 
 const BACKFILL_RELOAD_MS = 10000;
 
@@ -48,7 +49,12 @@ function header(detail) {
       detail.eta ? h("span", {}, `ETA ${fmtRough(detail.eta.remaining_s)} (≈ ${fmtTime(detail.eta.at)})`) : null,
       job ? h("span", { class: "mono" }, `elapsed ${fmtDuration(job.elapsed_s)} / ${job.time_limit_s ? fmtDuration(job.time_limit_s) : "∞"}`) : null,
       solver && solver.warning_count ? h("span", { class: "badge warn" }, `${solver.warning_count} warnings`) : null,
-      h("a", { href: `#/compare?runs=${detail.id}` }, "Compare…")),
+      h("a", { href: `#/compare?runs=${detail.id}` }, "Compare…"),
+      detail.cluster_id && detail.work_dir
+        ? h("button", { type: "button", title: "Open a terminal in the run folder",
+            onclick: () => openTerminal({ cluster: detail.cluster_id, cwd: detail.work_dir, run: detail.id }) },
+          "Terminal")
+        : null),
     solver && solver.error_message ? h("p", { class: "error" }, solver.error_message) : null);
 }
 

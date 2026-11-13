@@ -6,6 +6,7 @@ POST /api/terminals                      {cluster_id, cwd?, run_id?, cols, rows,
 POST /api/terminals/{id}/ticket          new ticket (re-attach after a page reload)
 POST /api/terminals/{id}/close           end the session
 GET  /api/clusters/{id}/tmux             live `simman-*` tmux sessions (re-attach menu)
+GET  /api/runs/{id}/quick-actions        commands to insert into the run's terminal
 WS   /ws/term/{id}?ticket=...            the terminal itself
 
 On top of the checks of every request (cookie, Host, Origin; ADR 0005) the WebSocket needs
@@ -46,9 +47,14 @@ from simmanager.contracts.terminal import (
     TerminalService,
     TerminalState,
 )
-from simmanager.contracts.transport import ClusterUnavailableError, TransportError
+from simmanager.contracts.transport import (
+    ClusterUnavailableError,
+    ConnectionState,
+    TransportError,
+)
 
 from .api import Api, _iso
+from .quick import STDOUT_PARSERS, input_candidates, quick_actions
 
 TICKET_TTL_S = 30.0
 MAX_INPUT_FRAME = 64 * 1024
@@ -196,7 +202,78 @@ def build_terminal_router(t: TerminalApi) -> APIRouter:
         except TransportError as exc:
             raise HTTPException(502, str(exc)) from None
 
+    @r.get("/runs/{run_id}/quick-actions")
+    async def run_quick_actions(run_id: int) -> dict[str, Any]:
+        api = t.api
+        run = await api.storage.run(run_id)
+        if run is None:
+            raise HTTPException(404, "unknown run")
+        job = await api.storage.job_for_run(run_id)
+        solver = await api.ts.get_run_solver_state(run_id)
+        work_dir = run.work_dir or (job.info.work_dir if job else None)
+        logs = (
+            [
+                posixpath.join(work_dir, c.file_path)
+                for c in await api.ts.list_cursors(run_id)
+                if c.parser_kind in STDOUT_PARSERS
+            ]
+            if work_dir
+            else []
+        )
+        case_dir = (solver.case_dir if solver else None) or work_dir
+        inputs, note = await _list_inputs(
+            api, run.cluster_id, solver.solver if solver else None, case_dir
+        )
+        actions = quick_actions(
+            work_dir=work_dir,
+            job_id=job.info.job_id if job else None,
+            logs=sorted(logs),
+            inputs=inputs,
+        )
+        return {
+            "run_id": run_id,
+            "cluster_id": run.cluster_id,
+            "work_dir": work_dir,
+            "job": (
+                {
+                    "job_id": job.info.job_id,
+                    "name": job.info.name,
+                    "active": job.active,
+                    "state": str(job.info.state),
+                }
+                if job
+                else None
+            ),
+            "actions": [
+                {"group": a.group, "label": a.label, "command": a.command} for a in actions
+            ],
+            "note": note,
+        }
+
     return r
+
+
+async def _list_inputs(
+    api: Api, cluster_id: str | None, solver: str | None, case_dir: str | None
+) -> tuple[list[str], str | None]:
+    """Input files of the case, listed over SFTP only when the cluster is already
+    connected: a page load must never trigger a login or an OTP prompt."""
+    if not cluster_id or not case_dir:
+        return [], None
+    transport = api.transport
+    if cluster_id not in transport.clusters():
+        return [], None
+    if transport.state(cluster_id) is not ConnectionState.CONNECTED:
+        return [], "input files are listed once the cluster is connected"
+    try:
+        session = await transport.session(cluster_id)
+        names = [posixpath.basename(e.path) for e in await session.listdir(case_dir)]
+        if solver == "openfoam":
+            system = posixpath.join(case_dir, "system")
+            names = [f"system/{posixpath.basename(e.path)}" for e in await session.listdir(system)]
+    except TransportError as exc:
+        return [], f"cannot list the case folder: {exc}"
+    return input_candidates(solver, case_dir, names), None
 
 
 def build_terminal_ws_router(t: TerminalApi) -> APIRouter:

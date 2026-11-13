@@ -53,6 +53,8 @@ tr.clickable:hover { background: #f1f5ff; }
 .cluster { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: #fff; }
 .cluster .head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
 .cluster .head strong { font-size: 15px; }
+.cluster .head .terminal-picker { margin-left: auto; min-width: 0; padding: 3px 6px; }
+.cluster .head .terminal-picker + button { margin-left: 0; }
 .cluster .head button { margin-left: auto; }
 
 button, select, input { font: inherit; }

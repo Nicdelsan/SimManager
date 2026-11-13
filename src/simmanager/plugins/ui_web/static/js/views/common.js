@@ -3,11 +3,14 @@
 import { api } from "../api.js";
 import * as ws from "../ws.js";
 import { h, clear, fmtTime, fmtDuration, fmtRough, pct, progressBar, stateBadge } from "../util.js";
+import { openTerminal } from "../terminal/open.js";
 
 export function clusterCard(c, { onReconnect } = {}) {
   const poll = c.last_poll;
   const button = h("button", {
     onclick: async () => {
+      const open = (c.terminals && c.terminals.open) || 0;
+      if (open && !confirm(`Reconnecting ${c.id} closes its SSH connection: ${open} open terminal(s) will end. Continue?`)) return;
       button.disabled = true;
       try { await api.reconnect(c.id); if (onReconnect) onReconnect(); }
       catch (err) { alert(err.message); }
@@ -15,7 +18,7 @@ export function clusterCard(c, { onReconnect } = {}) {
     },
   }, "Reconnect");
   return h("div", { class: "cluster" },
-    h("div", { class: "head" }, h("strong", {}, c.id), stateBadge(c.state), button),
+    h("div", { class: "head" }, h("strong", {}, c.id), stateBadge(c.state), terminalPicker(c), button),
     h("div", { class: "small muted mono" }, c.target, " · ", c.scheduler),
     c.detail ? h("div", { class: "small" }, c.detail) : null,
     poll
@@ -24,6 +27,25 @@ export function clusterCard(c, { onReconnect } = {}) {
           ` · polled ${fmtTime(poll.at)}`,
           poll.next_poll_s ? ` · next in ${Math.round(poll.next_poll_s)} s` : "")
       : h("div", { class: "small muted" }, "not polled yet"));
+}
+
+/** "Terminal" drop-down of a cluster card: home folder or one of the work roots. */
+export function terminalPicker(c) {
+  const t = c.terminals || {};
+  if (!t.available) return null;
+  const select = h("select", {
+    class: "terminal-picker",
+    title: `${t.open || 0} of ${t.max} terminals open on ${c.id}`,
+    onchange: () => {
+      const cwd = select.value;
+      select.selectedIndex = 0;
+      openTerminal({ cluster: c.id, cwd: cwd === "~" ? null : cwd });
+    },
+  },
+  h("option", { value: "" }, `Terminal${t.open ? ` (${t.open} open)` : ""}…`),
+  h("option", { value: "~" }, "home folder"),
+  (c.work_roots || []).map((root) => h("option", { value: root }, root)));
+  return select;
 }
 
 export function runRow(run, { selectable = false, selected = null } = {}) {

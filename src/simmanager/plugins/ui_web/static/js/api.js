@@ -55,5 +55,6 @@ export const api = {
   openTerminal: (body) => request("POST", "/terminals", body),
   terminalTicket: (id) => request("POST", `/terminals/${encodeURIComponent(id)}/ticket`, {}),
   closeTerminal: (id) => request("POST", `/terminals/${encodeURIComponent(id)}/close`, {}),
+  quickActions: (runId) => request("GET", `/runs/${runId}/quick-actions`),
   tmuxSessions: (cluster) => request("GET", `/clusters/${encodeURIComponent(cluster)}/tmux`),
 };

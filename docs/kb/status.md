@@ -5,7 +5,7 @@ _Last updated: 2026-11-13_
 ## Current milestone
 
 **M4 — integrated SSH terminal: in progress on `main`** (plan approved 2026-11-13,
-[roadmap.md#m4](roadmap.md#m4--integrated-ssh-terminal)). Done: step 1 (`open_pty`), step 2 (`terminal` service), step 3 (web endpoints), step 4 (terminal page).
+[roadmap.md#m4](roadmap.md#m4--integrated-ssh-terminal)). Done: step 1 (`open_pty`), step 2 (`terminal` service), step 3 (web endpoints), step 4 (terminal page), step 5 (entry points, quick actions).
 In parallel another agent builds M6 on branch `m6-snapshots` (migration `0005`,
 ADR `0006`); M4 uses migration `0006` / ADR `0007` if needed and assumptions from A400.
 
@@ -119,6 +119,12 @@ the new OpenSSH format would need `bcrypt`: not added, the user has no passphras
 
 ## Changelog
 
+- 2026-11-13 — M4 step 5: "Terminal" drop-down on cluster cards (home or a work root) and
+  button in the run detail (run folder); both reuse the `simman-terminal` window.
+  `GET /api/runs/{id}/quick-actions`: drop-down menus Folder / Log / Job / Edit input
+  (`vi` on every `.in`, OpenFOAM `system/*Dict`) that insert a shell-quoted command
+  without Enter; input files are listed only if the cluster is already connected (no
+  login from a page load). "Reconnect" asks first when terminals are open.
 - 2026-11-13 — M4 step 4: page `/terminal` (own window `simman-terminal`): tabs, xterm.js
   6.0.0 + addon-fit 0.11.0 vendored (MIT, SHA-256 checked by a test), fit on resize,
   UTF-8, Ctrl+C copies a selection (else SIGINT), Ctrl+V pastes, re-attach of every

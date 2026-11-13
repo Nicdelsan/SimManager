@@ -14,10 +14,12 @@ import yaml
 from websockets.asyncio.client import connect
 from websockets.exceptions import ConnectionClosed, InvalidStatus
 
-from simmanager.plugins.storage_sqlite import SqliteStoragePlugin
+from simmanager.contracts.scheduler import JobInfo, JobState
+from simmanager.plugins.storage_sqlite import SqliteStoragePlugin, SqliteTimeSeriesPlugin
 from simmanager.plugins.terminal import TerminalPlugin
 from simmanager.plugins.transport_ssh import SshTransportPlugin
 from simmanager.plugins.ui_web import WebPrompterPlugin
+from simmanager.plugins.ui_web.quick import input_candidates, quick_actions
 from simmanager.plugins.ui_web.security import CSP, TERMINAL_CSP
 from simmanager.plugins.ui_web.terminal import Tickets
 
@@ -57,9 +59,8 @@ def _config(tmp_path: Path, clusters: Path, **extra: dict[str, Any]) -> dict[str
 @pytest.fixture
 async def web(tmp_path: Path, ssh: SshTestServer) -> AsyncIterator[Web]:
     config = _config(tmp_path, _clusters_file(tmp_path, ssh))
-    async with running_web(
-        SqliteStoragePlugin, SshTransportPlugin, TerminalPlugin, config=config
-    ) as w:
+    plugins = (SqliteStoragePlugin, SqliteTimeSeriesPlugin, SshTransportPlugin, TerminalPlugin)
+    async with running_web(*plugins, config=config) as w:
         yield w
 
 
@@ -300,3 +301,56 @@ async def test_awaiting_auth_prompt_in_browser_then_shell(
 async def test_terminals_without_service_answer_503() -> None:
     async with running_web() as web, web.client() as c:
         assert (await c.get("/api/terminals")).status_code == 503
+
+
+async def test_quick_actions_for_a_run(web: Web, ssh: SshTestServer) -> None:
+    case = ssh.sftp_root / "work" / "case 2"
+    case.mkdir(parents=True)
+    for name in ("engine.in", "inputs.in", "notes.txt"):
+        (case / name).write_text("x")
+    storage = web.kernel.services.require("storage")
+    job = await storage.upsert_job(
+        C,
+        JobInfo(
+            job_id="77",
+            name="c2",
+            state=JobState.RUNNING,
+            raw_state="RUNNING",
+            work_dir="/work/case 2",
+        ),
+        active=True,
+    )
+    run_id = job.record.run_id
+    async with web.client() as c:
+        first = (await c.get(f"/api/runs/{run_id}/quick-actions")).json()
+        # Not connected yet: no SFTP listing (a page load never triggers a login).
+        assert first["note"] and not [a for a in first["actions"] if a["group"] == "Edit input"]
+        assert first["job"] == {"job_id": "77", "name": "c2", "active": True, "state": "running"}
+        await web.kernel.services.require("transport").session(C)
+        data = (await c.get(f"/api/runs/{run_id}/quick-actions")).json()
+        assert (await c.get("/api/runs/999/quick-actions")).status_code == 404
+    commands = {a["label"]: a["command"] for a in data["actions"]}
+    assert data["note"] is None
+    assert commands["cd to the run folder"] == "cd '/work/case 2'"
+    assert commands["squeue -j 77"] == "squeue -j 77"
+    assert commands["vi engine.in"] == "vi '/work/case 2/engine.in'"
+    assert [a["label"] for a in data["actions"] if a["group"] == "Edit input"] == [
+        "vi engine.in",
+        "vi inputs.in",
+    ]
+
+
+def test_quick_action_commands_are_quoted_single_lines() -> None:
+    actions = quick_actions(
+        work_dir="/w/a b",
+        job_id="12_3",
+        logs=["/w/a b/log; rm -rf ~"],
+        inputs=input_candidates("converge", "/w/a b", ["x.in", "$(id).in", "y.dat"]),
+    )
+    for a in actions:
+        assert not set(a.command) & {"\n", "\r"}
+    by_label = {a.label: a.command for a in actions}
+    assert by_label["tail -n 100 log; rm -rf ~"] == "tail -n 100 '/w/a b/log; rm -rf ~'"
+    assert by_label["vi $(id).in"] == "vi '/w/a b/$(id).in'"
+    foam = input_candidates("openfoam", "/c", ["system/controlDict", "system/other"])
+    assert foam == ["/c/system/controlDict"]
