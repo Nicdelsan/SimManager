@@ -148,9 +148,7 @@ class SqliteSnapshotStore:
     async def get_snapshot(
         self, snapshot_id: int, *, include_files: bool = True
     ) -> SnapshotRecord | None:
-        async with self._db.execute(
-            "SELECT * FROM snapshots WHERE id = ?", (snapshot_id,)
-        ) as cur:
+        async with self._db.execute("SELECT * FROM snapshots WHERE id = ?", (snapshot_id,)) as cur:
             row = await cur.fetchone()
         if row is None:
             return None
@@ -274,9 +272,7 @@ class SqliteSnapshotStore:
         )
 
     async def get_note(self, run_id: int) -> RunNoteRecord | None:
-        async with self._db.execute(
-            "SELECT * FROM run_notes WHERE run_id = ?", (run_id,)
-        ) as cur:
+        async with self._db.execute("SELECT * FROM run_notes WHERE run_id = ?", (run_id,)) as cur:
             row = await cur.fetchone()
         if row is None:
             return None
@@ -310,9 +306,7 @@ class SqliteSnapshotStore:
             return tuple([_file_from_row(row) async for row in cur])
 
 
-def _snapshot_from_row(
-    row: aiosqlite.Row, files: tuple[SnapshotFileRecord, ...]
-) -> SnapshotRecord:
+def _snapshot_from_row(row: aiosqlite.Row, files: tuple[SnapshotFileRecord, ...]) -> SnapshotRecord:
     raw_late: Any = json.loads(row["late_files_json"] or "[]")
     late_files = tuple(str(x) for x in raw_late) if isinstance(raw_late, list) else ()
     return SnapshotRecord(

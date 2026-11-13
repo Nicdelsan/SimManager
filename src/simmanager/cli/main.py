@@ -38,12 +38,19 @@ from simmanager.plugins.ui_web import UiWebServer
 
 from .campaign import campaign_app
 from .ingest import ingest_app
+from .rules import alerts_app, notify_app, rules_app
+from .snapshot import run_app, snapshot_app
 
 app = typer.Typer(no_args_is_help=True, help="SimManager: monitor CFD simulations on HPC clusters.")
 config_app = typer.Typer(no_args_is_help=True, help="Inspect the layered configuration.")
 app.add_typer(config_app, name="config")
 app.add_typer(ingest_app, name="ingest")
 app.add_typer(campaign_app, name="campaign")
+app.add_typer(snapshot_app, name="snapshot")
+app.add_typer(run_app, name="run")
+app.add_typer(rules_app, name="rules")
+app.add_typer(alerts_app, name="alerts")
+app.add_typer(notify_app, name="notify")
 cluster_app = typer.Typer(no_args_is_help=True, help="Cluster profiles (clusters.yaml).")
 app.add_typer(cluster_app, name="cluster")
 jobs_app = typer.Typer(no_args_is_help=True, help="Jobs discovered by the monitor.")

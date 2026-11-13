@@ -114,6 +114,20 @@ the UI can stream the log live).
 Progress is stored as a timeseries (`ingest.PROGRESS_SERIES`: x = wall time, y = 0..1);
 the solver state row is written last in a sync and acts as its commit marker.
 
+## M6 plugins
+
+| Plugin | Provides | Injects | Notes |
+|---|---|---|---|
+| `snapshot-sqlite` | `snapshot.store` | `storage` | Content-addressed blob + file manifest store (`snapshot_blobs`, `snapshots`, `snapshot_files`, `run_notes`), sharing the SQLite connection and `write_lock`. |
+| `rules-sqlite` | `rules.store` | `storage` | Layered rule configurations (`rule_configs`), deduplicated alerts (`alerts`), and per-run incremental evaluation/stall state (`rule_run_state`). |
+| `snapshot` | `snapshot.manager` | `snapshot.store`, `storage`, `transport`, `campaign.store` | Automatic input capture on `storage.event_appended` (`job.discovered`, `run.created`, `job.state_changed` → `running`) and `monitor.polled` fallback; background SHA-256 hashing up to 100 MiB; oversize hash reuse; semantic CONVERGE YAML + OpenFOAM dict diffs; mutable `run_notes`. |
+| `rules` | `rules.manager` | `rules.store`, `timeseries`, `storage`, `campaign.store` | Hierarchical rule merge (`global → campaign → case`), incremental series evaluation (`courant_high`, `residual_high` with warmup + restart reset, `monitor_range`), `nan_inf`, `solver_error`, `job_failed`, and adaptive `stall` detection. |
+| `notifier-desktop` | `notifier.provider` | — | Native Windows/Linux desktop toasts via `desktop-notifier` with silent fallback + log warning when headless/unavailable. |
+| `notifier` | `notifier.router` | — | Routes alerts and notable events to registered providers with immediate-first delivery, batching window coalescing, quiet hours (critical bypass), rate limiting, and secret-free formatting. |
+
+Durable events written in M6: `snapshot.captured`, `run.note_changed`, `alert.raised`,
+`alert.cleared`, `alert.acknowledged`.
+
 ## Milestones
 
 | | Content | Status |

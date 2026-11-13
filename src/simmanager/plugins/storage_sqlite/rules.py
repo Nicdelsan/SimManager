@@ -79,9 +79,7 @@ class SqliteRuleStore:
         assert row is not None
         return _rule_config_from_row(row)
 
-    async def delete_rule_config(
-        self, scope_type: RuleScope, scope_id: int, rule_key: str
-    ) -> bool:
+    async def delete_rule_config(self, scope_type: RuleScope, scope_id: int, rule_key: str) -> bool:
         async with self._write_lock:
             cur = await self._db.execute(
                 """
