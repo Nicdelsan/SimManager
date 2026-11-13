@@ -14,3 +14,4 @@ update the status and the code.
 | A7 | `sacct -X -n -P -o JobID,JobName,State,ExitCode,Elapsed,Submit,Start,End,WorkDir,Partition,NNodes,Timelimit,User,NodeList` prints one `\|`-separated line per job, and `-j` without `-S` searches past days. | scheduler-slurm | Run on `hpc-national` after a job ends; compare with `tests/fixtures/slurm/sacct.txt` | open |
 | A100 | Crank-angle CONVERGE runs print the unit inside parentheses in `logout.txt` (e.g. `(CA)` / `(deg)` instead of `(sec)`). | solver-converge | A crank-angle `logout.txt` sample | open |
 | A101 | CONVERGE fatal errors in `logout.txt` start with `Fatal Error`, `FATAL ERROR`, or `ERROR:`. | solver-converge | A failing CONVERGE `logout.txt` sample | open |
+| A200 | A failed `SolverState` or failed scheduler job combined with `solver.nan_detected` or divergence keywords in `error_message` indicates `diverged` rather than generic `failed`. | campaign-excel | A diverging CONVERGE/OpenFOAM run sample | open |

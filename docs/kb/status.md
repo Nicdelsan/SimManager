@@ -5,9 +5,12 @@ _Last updated: 2026-11-13_
 ## Current milestone
 
 **M3 — web UI**: in progress on `main` (plan approved 2026-11-13, see
-[roadmap.md#m3](roadmap.md#m3--web-ui)). **M5 — campaigns** is developed in parallel by
-another agent on branch `m5-campaigns` and owns migration `0004`; M3 uses `0005` if it
-needs one.
+[roadmap.md#m3](roadmap.md#m3--web-ui)); steps 1–7 done, campaign view and final docs
+pending.
+
+- M5 — Excel campaigns: backend done on branch `m5-campaigns` (other agent) and merged
+  into `main` on 2026-11-13 (migration `0004`). Its web view is built on `main` as part of
+  M3. Plan: [roadmap.md#m5](roadmap.md#m5--excel-campaigns-backend).
 
 - M1 — SSH and SLURM discovery: done 2026-11-13. All three clusters pass
   `simman cluster test`; real job lines still to be seen (A2, A7).
@@ -57,6 +60,22 @@ M2 (2026-11-13, merged into `main`):
   backfill, M1 integration via `monitor.polled`.
 - CLI: `simman ingest local|status|series`.
 
+M5 backend (2026-11-13, merged into `main`):
+- Migration `0004_campaigns.sql`: `projects`, `campaigns` (with `work_root`), `cases`
+  (with `parent_case_id`, `manual_state`, `computed_state`, `params_json`, `active`),
+  `case_runs`, `case_run_exclusions`, `case_match_ambiguities`.
+- Contracts `contracts/campaign.py` (`campaign` v1 `CampaignStore`, `campaign.manager` v1
+  `CampaignService`) and durable events `campaign.imported`, `case.matched`,
+  `case.unmatched`, `case.state_changed`, `campaign.ambiguous_match`.
+- `campaign-sqlite` (`storage_sqlite/campaign.py`) and `campaign-excel`
+  (`plugins/campaign_excel/`): Excel preview/idempotent reimport/rename detection,
+  `work_root`-scoped matching on `monitor.polled`, immediate state recomputation on
+  `run.solver_state_changed`, `solver.finished`, `solver.error`, and `solver.nan_detected`,
+  `NNN_MMM` derivation, multi-run computed states (`planned`, `queued`, `running`,
+  `completed`, `stopped`, `diverged`, `failed`, `cancelled`, `unknown`), enriched `.xlsx`
+  export preserving template sheets/styles after `ws.max_column`.
+- CLI (`cli/campaign.py`): `simman campaign import|list|show|match|unmatch|unmatched|export`.
+
 M3 (in progress):
 - Durable log holds facts only (`ingest.DURABLE_EVENT_KINDS`, incl. new
   `run.solver_state_changed`); `series.updated`, `run.progress`, `backfill.progress` are
@@ -77,7 +96,7 @@ M3 (in progress):
 
 ## Not yet implemented
 
-Terminal, campaigns, snapshots, notifications. PBS is on standby (user decision 2026-11-13). Passphrase-protected keys in
+Terminal (M4), campaign view in the web UI (M3, in progress), snapshots, notifications. PBS is on standby (user decision 2026-11-13). Passphrase-protected keys in
 the new OpenSSH format would need `bcrypt`: not added, the user has no passphrases.
 
 ## Known limitations
@@ -93,6 +112,8 @@ the new OpenSSH format would need `bcrypt`: not added, the user has no passphras
 
 ## Changelog
 
+- 2026-11-13 — Merged `m5-campaigns` (campaign backend, migration `0004`, `simman campaign`)
+  into `main`; no conflicts; status sections unified.
 - 2026-11-13 — M3 step 7: web frontend (dashboard, runs, run detail with plots per unit,
   progress plot + ETA, zoom → higher resolution, live points, backfill indicator,
   compare, clusters + reconnect, auth dialog, manual run registration); uPlot 1.6.31
