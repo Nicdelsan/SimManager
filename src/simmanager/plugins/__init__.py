@@ -17,6 +17,7 @@ from .storage_sqlite import (
     SqliteStoragePlugin,
     SqliteTimeSeriesPlugin,
 )
+from .terminal import TerminalPlugin
 from .transport_ssh import SshTransportPlugin
 from .ui_web import UiWebPlugin, WebPrompterPlugin
 
@@ -34,13 +35,14 @@ BUILTIN_PLUGINS: tuple[type[Plugin], ...] = (
     SolverIngestPlugin,
     UiWebPlugin,
     WebPrompterPlugin,
+    TerminalPlugin,
     ExampleClockPlugin,
     ExampleTickerPlugin,
 )
 
 DISABLED_BY_DEFAULT: frozenset[str] = frozenset({"example-clock", "example-ticker"})
 
-WEB_ONLY_PLUGINS: frozenset[str] = frozenset({"ui-web", "prompter-web"})
+WEB_ONLY_PLUGINS: frozenset[str] = frozenset({"ui-web", "prompter-web", "terminal"})
 """Started only by `simman serve`: other commands must not open a web server."""
 
 PROMPTER_PLUGINS: dict[str, str] = {"cli": "prompter-cli", "web": "prompter-web"}

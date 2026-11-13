@@ -23,7 +23,13 @@ def _write_user_config(text: str) -> None:
 def test_defaults_enable_storage_disable_examples() -> None:
     setup = prepare()
     assert {"storage-sqlite", "timeseries-sqlite"} <= {c.name for c in setup.enabled}
-    assert set(setup.disabled) == {"example-clock", "example-ticker", "ui-web", "prompter-web"}
+    assert set(setup.disabled) == {
+        "example-clock",
+        "example-ticker",
+        "ui-web",
+        "prompter-web",
+        "terminal",
+    }
     assert setup.config.origins[("plugins", "storage-sqlite", "enabled")] == "defaults"
 
 
@@ -113,9 +119,9 @@ def test_cli_reports_config_errors() -> None:
     ("prompter", "web", "expected"),
     [
         (None, False, {"prompter-cli"}),
-        (None, True, {"ui-web", "prompter-web"}),
+        (None, True, {"ui-web", "prompter-web", "terminal"}),
         ("web", False, {"prompter-cli"}),  # no web server outside `serve`
-        ("cli", True, {"ui-web", "prompter-cli"}),
+        ("cli", True, {"ui-web", "prompter-cli", "terminal"}),
     ],
 )
 def test_web_plugins_and_prompter_selection(
@@ -125,4 +131,4 @@ def test_web_plugins_and_prompter_selection(
         _write_user_config(f"prompter: {prompter}\n")
     setup = prepare(web=web)
     names = {c.name for c in setup.enabled}
-    assert names & {"ui-web", "prompter-web", "prompter-cli"} == expected
+    assert names & {"ui-web", "prompter-web", "prompter-cli", "terminal"} == expected

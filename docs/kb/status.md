@@ -5,7 +5,7 @@ _Last updated: 2026-11-13_
 ## Current milestone
 
 **M4 — integrated SSH terminal: in progress on `main`** (plan approved 2026-11-13,
-[roadmap.md#m4](roadmap.md#m4--integrated-ssh-terminal)). Done: step 1 (`open_pty`).
+[roadmap.md#m4](roadmap.md#m4--integrated-ssh-terminal)). Done: step 1 (`open_pty`), step 2 (`terminal` service).
 In parallel another agent builds M6 on branch `m6-snapshots` (migration `0005`,
 ADR `0006`); M4 uses migration `0006` / ADR `0007` if needed and assumptions from A400.
 
@@ -119,6 +119,10 @@ the new OpenSSH format would need `bcrypt`: not added, the user has no passphras
 
 ## Changelog
 
+- 2026-11-13 — M4 step 2: contract `terminal` v1 and web-only plugin `terminal`
+  (sessions, 1 MiB replay buffer, single attachment with takeover, orphan expiry 30 min,
+  backpressure, one explicit reconnect for clusters awaiting auth, tmux naming above
+  every live `simman-<cluster>-<n>`), durable `terminal.opened/closed`.
 - 2026-11-13 — M4 step 1: `transport` contract gets `RemoteSession.open_pty` (login
   shell, optional `cwd` checked over SFTP, optional tmux), `PtyChannel`, `TmuxSpec`,
   `TerminalLimitError`, `RemoteDirectoryMissingError`; profiles get `max_terminals`
