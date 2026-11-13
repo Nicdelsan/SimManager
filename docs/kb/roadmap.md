@@ -9,7 +9,7 @@ Done 2026-11-13. See [architecture.md](../architecture.md).
 
 ## M1 — SSH and SLURM discovery ✅
 
-Code complete 2026-11-13 (real-cluster checks pending, see [status.md](status.md)).
+Done 2026-11-13; checked on the three real clusters (see [status.md](status.md)).
 As built: contracts in `src/simmanager/contracts/` (table in
 [architecture.md](../architecture.md#contracts-contracts)), policy and auth states in
 [ADR 0004](../adr/0004-read-only-ssh-and-auth-states.md), SLURM commands in

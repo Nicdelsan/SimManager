@@ -4,10 +4,10 @@ _Last updated: 2026-11-13_
 
 ## Current milestone
 
-**M1 — SSH and SLURM discovery**: code complete 2026-11-13, waiting for the user to run
-`simman cluster test` on the real clusters (verifies A2, A3; A7 after a job ends on
-`hpc-national`). **M2** is developed in parallel in a separate worktree (branch
-`m2-parsers`), on top of the M1 contracts.
+**M1 — SSH and SLURM discovery**: done 2026-11-13. All three clusters connect and pass
+`simman cluster test`; real job lines still to be seen (A2, A7).
+**M2 — incremental readers and parsers**: developed in parallel in a separate worktree
+(branch `m2-parsers`), on top of the M1 contracts.
 
 ## What works
 
@@ -40,15 +40,21 @@ Solver parsers and incremental readers (M2), web UI, terminal, campaigns, snapsh
 notifications. PBS is on standby (user decision 2026-11-13). Passphrase-protected keys in
 the new OpenSSH format would need `bcrypt`: not added, the user has no passphrases.
 
+## Known limitations
+
+- On clusters without accounting (`uni-a`, `uni-b`) a job that starts and ends between
+  two polls (up to ~330 s when idle) is never seen. Possible later fix: poll faster
+  for a while after a submission is noticed, or read the case directory (M2).
+
 ## Open questions for the user
 
-1. Run `simman cluster add` + `simman cluster test` for `uni-a`, `uni-b`, `hpc-national`
-   and report the table (A2, A3, accounting on `uni-b`).
-2. A real `squeue` output with the user's own jobs, using the format in
-   [domain.md](domain.md#slurm). Otherwise fixtures stay synthetic and marked as assumptions.
+1. When a job is running: `simman monitor --once` + `simman jobs list --all` (verifies
+   A2 on real lines); after a job ends on `hpc-national` the same verifies A7.
 
 ## Changelog
 
+- 2026-11-13 — M1 verified on the three real clusters (`simman cluster test`): A3
+  verified, A2 partially; `uni-b` is Slurm 22.05.9 without accounting.
 - 2026-11-13 — transport-ssh: clear hint when a Windows `IdentityFile` path in the SSH
   config was mangled (backslashes); KB notes on the user's SSH setup.
 - 2026-11-13 — M1 implemented: transport-ssh, prompter-cli, scheduler-slurm, monitor,
