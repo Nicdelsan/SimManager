@@ -9,6 +9,7 @@ from .example import ExampleClockPlugin, ExampleTickerPlugin
 from .monitor import MonitorPlugin
 from .prompter_cli import CliPrompterPlugin
 from .scheduler_slurm import SlurmSchedulerPlugin
+from .snapshot import SnapshotPlugin
 from .solver_converge import ConvergeSolverPlugin
 from .solver_ingest import SolverIngestPlugin
 from .solver_openfoam import OpenFoamSolverPlugin
@@ -33,6 +34,7 @@ BUILTIN_PLUGINS: tuple[type[Plugin], ...] = (
     SshTransportPlugin,
     SlurmSchedulerPlugin,
     MonitorPlugin,
+    SnapshotPlugin,
     ConvergeSolverPlugin,
     OpenFoamSolverPlugin,
     SolverIngestPlugin,

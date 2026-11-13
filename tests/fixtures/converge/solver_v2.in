@@ -1,0 +1,11 @@
+version: 4
+##!Exported by CONVERGE Studio v4.1.2
+---
+
+piso_tol:                 1.0e-05
+max_cfl:                  0.5
+turbulence_model:         rng_ke
+relaxation:
+   pressure:              0.25
+   momentum:              0.7
+new_limiter:              true
