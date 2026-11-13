@@ -213,3 +213,10 @@ async def test_desktop_provider_fallback_when_unavailable() -> None:
     assert msg is not None
     assert "123456" not in msg.title and "123456" not in msg.body
     assert "do_not_leak" not in msg.title and "do_not_leak" not in msg.body
+
+
+def test_real_desktop_notifier_is_blocked_in_tests() -> None:
+    prov = DesktopNotifierProvider()
+    client = prov._ensure_client()
+    assert client is not None
+    assert type(client).__name__ == "_BlockedDesktopNotifier"

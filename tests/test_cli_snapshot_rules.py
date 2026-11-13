@@ -191,11 +191,20 @@ def test_cli_rules_alerts_and_notify(monkeypatch: pytest.MonkeyPatch, tmp_path: 
     assert a_open_after.exit_code == 0, a_open_after.stdout
     assert "tester" in a_open_after.stdout
 
-    # Suppress actual desktop popups during CI/test run while exercising full CLI path.
-    async def _fake_send(self: object, message: object) -> bool:
+    # Mock DesktopNotifierProvider.available and .send so this test is OS/headless-independent
+    # and never triggers a real desktop notification.
+    sent: list[object] = []
+
+    def _fake_available(self: object) -> bool:
         return True
 
+    async def _fake_send(self: object, message: object) -> bool:
+        sent.append(message)
+        return True
+
+    monkeypatch.setattr(desktop_mod.DesktopNotifierProvider, "available", _fake_available)
     monkeypatch.setattr(desktop_mod.DesktopNotifierProvider, "send", _fake_send)
     n_test = runner.invoke(app, ["notify", "test"])
     assert n_test.exit_code == 0, n_test.stdout
     assert "desktop: sent" in n_test.stdout
+    assert len(sent) == 1
