@@ -1,0 +1,64 @@
+#!/bin/sh
+# SimManager pre-commit hook.
+#   1. Knowledge base freshness: changes under src/ must come with a docs/kb/ update.
+#   2. Privacy scan of added lines: IPv4 addresses (except loopback), e-mail addresses and
+#      the local denylist (one term per line in .git/info/privacy-denylist — local only,
+#      never committed).
+# Enable once per clone:  git config core.hooksPath .githooks
+
+fail=0
+staged=$(git diff --cached --name-only --diff-filter=ACMRD)
+
+if printf '%s\n' "$staged" | grep -q '^src/' \
+   && ! printf '%s\n' "$staged" | grep -q -E '^(docs/kb/|AGENTS\.md)'; then
+    echo "pre-commit: src/ changed but the knowledge base was not updated." >&2
+    echo "            Update at least docs/kb/status.md (see AGENTS.md, 'Knowledge base')." >&2
+    fail=1
+fi
+
+# Added lines only, without the leading '+' of the diff.
+added=$(git diff --cached -U0 --diff-filter=ACMR -- . ':(exclude)uv.lock' \
+        | grep '^+' | grep -v '^+++' | sed 's/^+//')
+
+if [ -n "$added" ]; then
+    hits=$(printf '%s\n' "$added" \
+           | grep -E '(^|[^0-9.])([0-9]{1,3}\.){3}[0-9]{1,3}([^0-9.]|$)' \
+           | grep -v -E '(^|[^0-9.])(127\.0\.0\.1|0\.0\.0\.0)([^0-9.]|$)')
+    if [ -n "$hits" ]; then
+        echo "pre-commit: possible IP address in staged changes:" >&2
+        printf '%s\n' "$hits" >&2
+        fail=1
+    fi
+
+    hits=$(printf '%s\n' "$added" \
+           | grep -E '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' \
+           | grep -v -E 'noreply@anthropic\.com|@example\.(org|com)')
+    if [ -n "$hits" ]; then
+        echo "pre-commit: possible e-mail address in staged changes:" >&2
+        printf '%s\n' "$hits" >&2
+        fail=1
+    fi
+
+    denylist=$(git rev-parse --git-path info/privacy-denylist)
+    if [ -f "$denylist" ]; then
+        patterns=$(mktemp)
+        # Case-insensitive match done by lower-casing both sides: `grep -i -F -f` crashes
+        # in some Git for Windows builds.
+        tr -d '\r' < "$denylist" | grep -v -e '^[[:space:]]*$' -e '^#' \
+            | tr '[:upper:]' '[:lower:]' > "$patterns"
+        if [ -s "$patterns" ]; then
+            hits=$(printf '%s\n' "$added" | tr '[:upper:]' '[:lower:]' | grep -F -f "$patterns")
+            if [ -n "$hits" ]; then
+                echo "pre-commit: staged changes contain terms from the privacy denylist:" >&2
+                printf '%s\n' "$hits" >&2
+                fail=1
+            fi
+        fi
+        rm -f "$patterns"
+    fi
+fi
+
+if [ "$fail" -ne 0 ]; then
+    echo "pre-commit: commit blocked. Fix the issues above." >&2
+fi
+exit "$fail"

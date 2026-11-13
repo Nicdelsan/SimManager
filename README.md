@@ -55,6 +55,13 @@ override both.
 
 ## Develop
 
+Humans and coding agents: start from [AGENTS.md](AGENTS.md) and the knowledge base in
+[docs/kb/](docs/kb/README.md). Enable the repository hooks once per clone:
+
+```powershell
+git config core.hooksPath .githooks
+```
+
 ```powershell
 uv run pytest           # tests
 uv run ruff check src tests && uv run ruff format src tests
