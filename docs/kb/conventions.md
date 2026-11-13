@@ -38,11 +38,20 @@
 (`.githooks/pre-commit`) blocks staged lines containing:
 
 - IPv4 addresses and e-mail addresses (except `noreply@anthropic.com`, `@example.org/com`);
-- any term of the **local denylist** `.git/info/privacy-denylist` (one term per line: real
-  usernames, hostnames, institutions, project accounts, path fragments). It lives inside
-  `.git/`, so it is never committed; each clone creates its own.
+- any term of the **local denylist** `.git/info/privacy-denylist`. It lives inside `.git/`,
+  so it is never committed.
 
-Enable once per clone: `git config core.hooksPath .githooks`.
+The denylist is **generated**, not hand-written: `tools/dev_setup.py` harvests terms from
+sources that exist only on the user's machine (OS user, git user/email, `~/.ssh/config`,
+SimManager `clusters.yaml`, prompts/`UserId=`/`--account=`/paths/hostnames in `samples/`,
+shared strings of `.xlsx` samples) and adds manual extras from
+`<user config dir>/privacy-denylist.txt` (e.g. `%APPDATA%\SimManager\privacy-denylist.txt`)
+for names it cannot infer (clients, colleagues). Terms already present in tracked files or in
+the origin URL are excluded and reported as a warning — check every warning: a generic word
+goes in `STOPWORDS`, a real name is a leak to remove from the repo.
+
+Setup runs automatically for Claude Code (SessionStart hook); other agents run
+`uv run python tools/dev_setup.py` once per clone (a test fails until they do).
 
 When anonymizing: replace users with `user1`, `otheruser`; paths with `/work/user1/case_a`;
 hosts with `cluster.example.org`; accounts with `ACCOUNT_X`; drop other users' jobs.
@@ -50,7 +59,7 @@ hosts with `cluster.example.org`; accounts with `ACCOUNT_X`; drop other users' j
 ## Git
 
 - Small, descriptive commits; KB updated in the same commit (pre-commit hook checks
-  `src/` → `docs/kb/`). Enable hooks once per clone: `git config core.hooksPath .githooks`.
+  `src/` → `docs/kb/`). Hooks are enabled by `tools/dev_setup.py` (automatic in Claude Code).
 - Never push or force-push unless the user asks. Never bypass hooks unless the user asks.
 - Line endings normalized to LF (`.gitattributes`).
 

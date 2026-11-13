@@ -49,6 +49,8 @@ uv run simman --help
 | `src/simmanager/plugins/` | Built-in plugins (`storage_sqlite`, `example`, …) |
 | `src/simmanager/app.py`, `cli/` | Bootstrap and `simman` CLI |
 | `tests/` | pytest; `tests/fixtures/` = anonymized sample extracts |
+| `tools/` | Developer tooling (`dev_setup.py`) |
+| `.githooks/`, `.claude/settings.json` | Versioned git hooks; Claude Code project hooks |
 | `docs/architecture.md` | How the system is built (authoritative) |
 | `docs/adr/` | Architecture decision records |
 | `docs/kb/` | Shared knowledge base (status, domain facts, conventions, assumptions) |
@@ -69,9 +71,20 @@ Update in the **same commit** as the change:
 | agreed a workflow/coding rule with the user | `docs/kb/conventions.md` |
 | finished or re-planned a milestone | `docs/kb/status.md` and `docs/kb/roadmap.md` |
 
-A git pre-commit hook enforces the first row (`.githooks/pre-commit`; enable once with
-`git config core.hooksPath .githooks`). `tests/test_knowledge_base.py` checks that KB files
-exist and internal links resolve.
+A git pre-commit hook enforces the first row and scans for private data
+(`.githooks/pre-commit`). `tests/test_knowledge_base.py` checks that KB files exist,
+internal links resolve and every `ASSUMPTION(A<n>)` is registered.
+
+## Environment setup (automatic)
+
+`tools/dev_setup.py` enables the git hooks and rebuilds the local privacy denylist from
+private sources on this machine (OS/git user, `~/.ssh/config`, `clusters.yaml`, `samples/`,
+manual extras). It is idempotent.
+
+- **Claude Code** runs it at every session start (`.claude/settings.json`, SessionStart hook).
+- **Any other agent or human**: run `uv run python tools/dev_setup.py` first in a new
+  clone. If you forget, `tests/test_dev_setup.py::test_dev_environment_is_set_up` fails and
+  tells you to.
 
 ## Talking to the user
 

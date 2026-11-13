@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && uv run --quiet python tools/dev_setup.py --quiet",
+            "timeout": 120,
+            "statusMessage": "SimManager: enabling git hooks and refreshing privacy denylist"
+          }
+        ]
+      }
+    ]
+  }
+}

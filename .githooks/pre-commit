@@ -32,7 +32,7 @@ if [ -n "$added" ]; then
 
     hits=$(printf '%s\n' "$added" \
            | grep -E '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' \
-           | grep -v -E 'noreply@anthropic\.com|@example\.(org|com)')
+           | grep -v -E 'noreply@anthropic\.com|@([A-Za-z0-9-]+\.)*example\.(org|com)')
     if [ -n "$hits" ]; then
         echo "pre-commit: possible e-mail address in staged changes:" >&2
         printf '%s\n' "$hits" >&2

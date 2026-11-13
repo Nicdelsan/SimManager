@@ -56,10 +56,10 @@ override both.
 ## Develop
 
 Humans and coding agents: start from [AGENTS.md](AGENTS.md) and the knowledge base in
-[docs/kb/](docs/kb/README.md). Enable the repository hooks once per clone:
+[docs/kb/](docs/kb/README.md). Once per clone (automatic in Claude Code sessions):
 
 ```powershell
-git config core.hooksPath .githooks
+uv run python tools/dev_setup.py   # enables git hooks, builds the local privacy denylist
 ```
 
 ```powershell

@@ -30,5 +30,8 @@ snapshots, notifications. PBS is on standby (user decision 2026-11-13).
 
 ## Changelog
 
+- 2026-11-13 — `tools/dev_setup.py` + Claude Code SessionStart hook: git hooks enabled and
+  privacy denylist generated automatically from local sources on every machine.
+
 - 2026-11-13 — Knowledge base created (`AGENTS.md`, `docs/kb/`, KB pre-commit hook and test).
 - 2026-11-13 — M0 completed and pushed: kernel, SQLite storage, CLI, docs, ADR 0001–0002.
