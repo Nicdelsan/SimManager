@@ -41,6 +41,26 @@ Changes from the plan agreed on 2026-11-13:
   ~1k points) + min/max downsampled levels.
 - Parsers: see [domain.md](domain.md).
 
-## M3 — Web UI · M4 — Terminal · M5 — Excel campaigns · M6 — Snapshots, rules, notifications
+## M3 — Web UI
+
+Plan approved 2026-11-13 with these decisions:
+- Plugin `ui_web`: `ui-web` (FastAPI + uvicorn in the kernel's event loop, service
+  `ui.web`) and `prompter-web` (`auth.prompter` over the dashboard WebSocket). No
+  frontend toolchain: ES modules + vendored uPlot; works offline.
+- Security: bind 127.0.0.1 only; random token per start exchanged for an
+  `HttpOnly; SameSite=Strict` cookie; Host check (DNS rebinding) on HTTP and WS; Origin
+  required on WS and POST; JSON-only POST; CSP `default-src 'self'`,
+  `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`.
+- Durable log holds only facts (`ingest.DURABLE_EVENT_KINDS`); `series.updated`,
+  `run.progress`, `backfill.progress` are bus-only. `storage.event_appended` forwards
+  the durable log live.
+- ETA from the progress series (`ingest.PROGRESS_SERIES`, x = wall time), also plotted.
+- One plot per unit; log scale default for residuals; zoom reloads at higher
+  resolution through `query_series` levels; live points ≤ 1 update/s per run.
+- `prompter: auto|cli|web` (auto: `serve` → web). Unanswered prompt → timeout →
+  `AWAITING_AUTH`, no blind retry. Secrets never logged or kept; the transport no
+  longer caches key passphrases. Browser opened automatically by `serve`.
+
+## M4 — Terminal · M5 — Excel campaigns · M6 — Snapshots, rules, notifications
 
 See [project-brief.md](project-brief.md). Detailed plans are written here when each starts.

@@ -15,6 +15,10 @@ from .scheduler import JobInfo
 SERVICE_KEY = "storage"
 CONTRACT_VERSION = 1
 
+EVENT_APPENDED = "storage.event_appended"
+"""Bus event emitted after every successful `append_event`; payload: the `EventRecord`.
+Lets live views follow the durable log without each plugin re-emitting its facts."""
+
 
 @dataclass(frozen=True)
 class EventRecord:
@@ -118,4 +122,12 @@ class Storage(Protocol):
 
     async def run(self, run_id: int) -> RunRecord | None:
         """Fetch a run by id, or None when it does not exist."""
+        ...
+
+    async def runs(self, *, cluster_id: str | None = None, limit: int = 200) -> list[RunRecord]:
+        """Runs of any origin (discovered or manual), newest first."""
+        ...
+
+    async def job_for_run(self, run_id: int) -> JobRecord | None:
+        """The scheduler job of a run; None for manual runs or unknown ids."""
         ...

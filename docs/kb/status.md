@@ -4,8 +4,10 @@ _Last updated: 2026-11-13_
 
 ## Current milestone
 
-**M3 — web UI**: planning (2026-11-13). Plan to be approved by the user before any code.
-M0, M1 and M2 are on `main`; no parallel worktrees or other active agents.
+**M3 — web UI**: in progress on `main` (plan approved 2026-11-13, see
+[roadmap.md#m3](roadmap.md#m3--web-ui)). **M5 — campaigns** is developed in parallel by
+another agent on branch `m5-campaigns` and owns migration `0004`; M3 uses `0005` if it
+needs one.
 
 - M1 — SSH and SLURM discovery: done 2026-11-13. All three clusters pass
   `simman cluster test`; real job lines still to be seen (A2, A7).
@@ -74,6 +76,9 @@ the new OpenSSH format would need `bcrypt`: not added, the user has no passphras
 
 ## Changelog
 
+- 2026-11-13 — M3 step 1: contracts (`storage.runs/job_for_run/EVENT_APPENDED`,
+  `ingest.track_run/PROGRESS_SERIES/DURABLE_EVENT_KINDS`, new `ui.web`) and dependencies
+  `fastapi`, `uvicorn`, `websockets` (dev: `httpx`). Implementations follow.
 - 2026-11-13 — M2 merged into `main` (`cf643ea`); status corrected (was "branch
   m2-parsers"). M3 planning started.
 - 2026-11-13 — M1 verified on the three real clusters (`simman cluster test`): A3

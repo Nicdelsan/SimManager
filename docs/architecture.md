@@ -58,7 +58,7 @@ Consumers import only these modules, never plugin implementations. Each has a
 
 | Module | Service key | Since | Content |
 |---|---|---|---|
-| `storage.py` | `storage` | M0 | Append-only event log (`append_event`, `events`, `latest_events`); jobs/runs (`upsert_job`, `jobs`, `create_run`, `run`, `JobRecord`, `JobUpsert`, `RunRecord`). |
+| `storage.py` | `storage` | M0 | Append-only event log (`append_event`, `events`, `latest_events`); jobs/runs (`upsert_job`, `jobs`, `create_run`, `run`, `JobRecord`, `JobUpsert`, `RunRecord`); since M3 `runs`, `job_for_run` and bus event `storage.event_appended` (every durable event, live). |
 | `monitor.py` | `monitor` | M1 | `Monitor.poll/poll_all` → `PollReport`; bus event `monitor.polled`. |
 | `clusters.py` | — (data) | M1 | `ClusterProfile` / `ClustersFile` (clusters.yaml), `PollConfig`. |
 | `transport.py` | `transport` | M1 | `Transport.session/state/reset/clusters`; `RemoteSession.run_readonly/run_mutating/stat/listdir/read_range`; `ConnectionState`; errors `TransportError`, `ClusterUnavailableError`, `CommandNotAllowedError`; bus event `transport.state`. |
@@ -66,7 +66,8 @@ Consumers import only these modules, never plugin implementations. Each has a
 | `scheduler.py` | `scheduler.<kind>` | M1 | `JobState`, `JobInfo`, `Scheduler.list_active/final_states/cancel_argv` (stateless; receives the `RemoteSession`). |
 | `timeseries.py` | `timeseries` | M2 | `TimeSeriesStore`, `FileCursor`, `SeriesKey`, `SeriesMeta`, `SeriesPoints`, `RunSolverState` (chunked float64 time series + cursors + solver run state). |
 | `solver.py` | `solver.<kind>` | M2 | `Solver` (`kind`, `discover`, `parse_header`, `parse_chunk`, `align_offset`), `WatchedFile`, `ParsedChunk`, `SolverStatusUpdate`. |
-| `ingest.py` | `ingest` | M2 | `IngestService.sync_run` (`SyncRunResult`): orchestrates solver detection, incremental reading, backfill and event emission. |
+| `ingest.py` | `ingest` | M2 | `IngestService.sync_run` (`SyncRunResult`): orchestrates solver detection, incremental reading, backfill and event emission. Since M3: `track_run` (manual runs), `PROGRESS_SERIES` (progress vs wall time in the timeseries store), `DURABLE_EVENT_KINDS` (only facts go to the durable log; `series.updated`, `run.progress`, `backfill.progress` are bus-only). |
+| `ui.py` | `ui.web` | M3 | Local web UI as seen by plugins: `base_url`, `client_count`, `broadcast`, `on_message`, `on_client_connected` (shared dashboard WebSocket; per-session channels such as the M4 terminal will be an additive extension). |
 
 ## Storage (`plugins/storage_sqlite`)
 
