@@ -54,13 +54,21 @@ M2 (2026-11-13, merged into `main`):
 - `solver-converge`, `solver-openfoam`: discovery + pure parsers (OpenFOAM
   `postProcessing/**` deferred until a sample exists).
 - `contracts/ingest.py` (`ingest` v1) and `solver-ingest`: solver detection, sync, background
-  backfill, M1 integration via `monitor.polled`, durable events `series.updated`,
-  `run.progress`.
+  backfill, M1 integration via `monitor.polled`.
 - CLI: `simman ingest local|status|series`.
+
+M3 (in progress):
+- Durable log holds facts only (`ingest.DURABLE_EVENT_KINDS`, incl. new
+  `run.solver_state_changed`); `series.updated`, `run.progress`, `backfill.progress` are
+  bus-only; `storage.event_appended` streams the durable log live.
+- Progress stored as series `ingest.PROGRESS_SERIES` (wall time → fraction).
+- Manual runs: `ingest.track_run`, resumed at start until the solver is done.
+- `ui-web`: secure local server (ADR 0005) + WebSocket hub; `simman serve` prints the
+  login URL and opens the browser. Page content: placeholder until step 7.
 
 ## Not yet implemented
 
-Web UI (M3), terminal, campaigns, snapshots, notifications. PBS is on standby (user decision 2026-11-13). Passphrase-protected keys in
+Web UI pages and API (M3 steps 4–7), terminal, campaigns, snapshots, notifications. PBS is on standby (user decision 2026-11-13). Passphrase-protected keys in
 the new OpenSSH format would need `bcrypt`: not added, the user has no passphrases.
 
 ## Known limitations
@@ -76,6 +84,10 @@ the new OpenSSH format would need `bcrypt`: not added, the user has no passphras
 
 ## Changelog
 
+- 2026-11-13 — M3 step 3: plugin `ui-web` (uvicorn in the kernel loop, 127.0.0.1 only,
+  token → `HttpOnly; SameSite=Strict` cookie, Host/Origin/JSON checks, CSP headers,
+  WebSocket hub), ADR 0005. `simman serve` prints the login URL, opens the browser
+  (`--no-browser`, `--port`), stops cleanly on Ctrl+C (tested on Windows).
 - 2026-11-13 — M3 step 2: storage implements `runs`, `job_for_run` and publishes
   `storage.event_appended`; solver-ingest writes only facts to the durable log
   (`run.solver_state_changed` new), stores progress as a series, tracks manual runs
