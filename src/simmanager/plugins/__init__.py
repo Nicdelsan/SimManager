@@ -6,6 +6,7 @@ from simmanager.kernel import Plugin
 
 from .example import ExampleClockPlugin, ExampleTickerPlugin
 from .solver_converge import ConvergeSolverPlugin
+from .solver_ingest import SolverIngestPlugin
 from .solver_openfoam import OpenFoamSolverPlugin
 from .storage_sqlite import SqliteStoragePlugin, SqliteTimeSeriesPlugin
 
@@ -14,6 +15,7 @@ BUILTIN_PLUGINS: tuple[type[Plugin], ...] = (
     SqliteTimeSeriesPlugin,
     ConvergeSolverPlugin,
     OpenFoamSolverPlugin,
+    SolverIngestPlugin,
     ExampleClockPlugin,
     ExampleTickerPlugin,
 )
