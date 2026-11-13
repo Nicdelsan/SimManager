@@ -21,6 +21,7 @@ import contextlib
 import logging
 import posixpath
 import random
+import re
 import stat as stat_mod
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import UTC, datetime, timedelta
@@ -153,7 +154,7 @@ class SshTransport:
                 "in known_hosts, or set `known_hosts` in clusters.yaml",
             )
         except (asyncssh.KeyImportError, asyncssh.ConfigParseError, FileNotFoundError) as exc:
-            await self._fail(c, f"SSH configuration problem: {exc}")
+            await self._fail(c, f"SSH configuration problem: {exc}{_path_hint(exc)}")
         except (OSError, TimeoutError, asyncssh.Error) as exc:
             await self._backoff(c, f"{type(exc).__name__}: {exc}".strip(": "))
         else:
@@ -285,6 +286,22 @@ class SshTransport:
     async def _confirm(self, cluster_id: str, question: str) -> bool:
         prompter = self._prompter()
         return False if prompter is None else await prompter.confirm(cluster_id, question)
+
+
+def _path_hint(exc: Exception) -> str:
+    r"""The SSH config is parsed with shell-like quoting: `C:\Users\me\key` becomes
+    `C:Usersmekey`. Recognize that mangled shape and say how to fix it."""
+    name = getattr(exc, "filename", None)
+    if (
+        isinstance(exc, FileNotFoundError)
+        and isinstance(name, str)
+        and re.match(r"^[A-Za-z]:[^\\/]", name)
+    ):
+        return (
+            ". Windows paths in the SSH config need forward slashes (C:/Users/...); "
+            "or set key_files in clusters.yaml"
+        )
+    return ""
 
 
 def _is_passphrase_problem(exc: Exception) -> bool:

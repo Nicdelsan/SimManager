@@ -21,6 +21,16 @@ that is where the host keys were recorded.
 Common facts:
 - All SLURM; PBS on standby (2026-11-13).
 - `squeue`/`sacct` reachable in a non-interactive SSH session → no login shell needed.
+- The user's `~/.ssh/config` has `ForwardX11`, `ForwardX11Trusted`, `ForwardAgent`,
+  `IdentitiesOnly`: harmless for the transport (checked 2026-11-13). Windows paths with
+  backslashes in `IdentityFile` are mangled by asyncssh's shell-like config parser
+  (`C:\a\b` → `C:ab`): use forward slashes or `key_files` in clusters.yaml (the
+  error message says so). `hpc-national` needs `key_files` anyway for the certificate
+  expiry check.
+- Host keys: only `hpc-national` is in the user's `~/.ssh/known_hosts`; run `ssh <alias>
+  hostname` once for the others (the terminal emulator keeps its own host key store).
+- `uni-b` is on a private LAN: reachable only from that network / VPN.
+- No user key is passphrase-protected (user, 2026-11-13): `bcrypt` not needed.
 - SSH from the user's Windows machine prints X11 warnings (`ForwardX11` in their config):
   ignore stderr noise when parsing command output.
 - Polling: adaptive 60/180/300 s (see [roadmap.md](roadmap.md#monitor-plugin)).

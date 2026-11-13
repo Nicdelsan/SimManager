@@ -270,3 +270,17 @@ async def test_sftp_reads(server: SshTestServer, h: Harness) -> None:
     assert [s.path for s in listing] == ["/case/log.txt"]
     assert await session.read_range("/case/log.txt", 3, 4) == b"3456"
     assert await session.read_range("/case/log.txt", 8, 100) == b"89"
+
+
+async def test_windows_path_in_ssh_config_gets_a_hint(server: SshTestServer, h: Harness) -> None:
+    key = server.new_client_key("id_test")
+    windows_path = str(key).replace("/", "\\")
+    server.ssh_config.write_text(
+        f"Host alias\n  HostName 127.0.0.1\n  IdentityFile {windows_path}\n", encoding="utf-8"
+    )
+    t = h.transport(server.profile(host=None, ssh_config_host="alias"))
+    with pytest.raises(ClusterUnavailableError) as err:
+        await t.session(C)
+    if "C:" in windows_path:  # the mangling only happens to drive-letter paths
+        assert "forward slashes" in err.value.detail
+    assert err.value.state is ConnectionState.FAILED

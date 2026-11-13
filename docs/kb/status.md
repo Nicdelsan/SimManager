@@ -38,7 +38,7 @@ M1 (2026-11-13):
 
 Solver parsers and incremental readers (M2), web UI, terminal, campaigns, snapshots,
 notifications. PBS is on standby (user decision 2026-11-13). Passphrase-protected keys in
-the new OpenSSH format need `bcrypt` (not a dependency yet: ask the user).
+the new OpenSSH format would need `bcrypt`: not added, the user has no passphrases.
 
 ## Open questions for the user
 
@@ -46,11 +46,11 @@ the new OpenSSH format need `bcrypt` (not a dependency yet: ask the user).
    and report the table (A2, A3, accounting on `uni-b`).
 2. A real `squeue` output with the user's own jobs, using the format in
    [domain.md](domain.md#slurm). Otherwise fixtures stay synthetic and marked as assumptions.
-3. Add `bcrypt` (optional asyncssh extra) only if one of the user's keys is
-   passphrase-protected in OpenSSH format.
 
 ## Changelog
 
+- 2026-11-13 — transport-ssh: clear hint when a Windows `IdentityFile` path in the SSH
+  config was mangled (backslashes); KB notes on the user's SSH setup.
 - 2026-11-13 — M1 implemented: transport-ssh, prompter-cli, scheduler-slurm, monitor,
   migration 0002 (jobs, runs), storage contract extended with jobs, monitor contract,
   CLI `cluster`/`monitor`/`jobs`, ADR 0004.
