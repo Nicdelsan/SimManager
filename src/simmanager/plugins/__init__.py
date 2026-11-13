@@ -14,6 +14,8 @@ from .solver_ingest import SolverIngestPlugin
 from .solver_openfoam import OpenFoamSolverPlugin
 from .storage_sqlite import (
     SqliteCampaignPlugin,
+    SqliteRulePlugin,
+    SqliteSnapshotPlugin,
     SqliteStoragePlugin,
     SqliteTimeSeriesPlugin,
 )
@@ -24,6 +26,8 @@ BUILTIN_PLUGINS: tuple[type[Plugin], ...] = (
     SqliteStoragePlugin,
     SqliteTimeSeriesPlugin,
     SqliteCampaignPlugin,
+    SqliteSnapshotPlugin,
+    SqliteRulePlugin,
     CampaignExcelPlugin,
     CliPrompterPlugin,
     SshTransportPlugin,
