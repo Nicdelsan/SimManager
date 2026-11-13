@@ -5,7 +5,7 @@ _Last updated: 2026-11-13_
 ## Current milestone
 
 **M4 — integrated SSH terminal: in progress on `main`** (plan approved 2026-11-13,
-[roadmap.md#m4](roadmap.md#m4--integrated-ssh-terminal)). Done: step 1 (`open_pty`), step 2 (`terminal` service), step 3 (web endpoints).
+[roadmap.md#m4](roadmap.md#m4--integrated-ssh-terminal)). Done: step 1 (`open_pty`), step 2 (`terminal` service), step 3 (web endpoints), step 4 (terminal page).
 In parallel another agent builds M6 on branch `m6-snapshots` (migration `0005`,
 ADR `0006`); M4 uses migration `0006` / ADR `0007` if needed and assumptions from A400.
 
@@ -119,6 +119,12 @@ the new OpenSSH format would need `bcrypt`: not added, the user has no passphras
 
 ## Changelog
 
+- 2026-11-13 — M4 step 4: page `/terminal` (own window `simman-terminal`): tabs, xterm.js
+  6.0.0 + addon-fit 0.11.0 vendored (MIT, SHA-256 checked by a test), fit on resize,
+  UTF-8, Ctrl+C copies a selection (else SIGINT), Ctrl+V pastes, re-attach of every
+  session after a reload (replay + SIGWINCH nudge), "+ Terminal" menu (home, work roots,
+  new tmux session, re-attach a live `simman-*` tmux session), auth dialog, notice that
+  terminals end with SimManager. Smoke-tested in headless Chrome (no CSP violations).
 - 2026-11-13 — M4 step 3: `ui-web` terminal endpoints (`/api/terminals`, single-use
   tickets, `/ws/term/{id}` binary WebSocket, tmux listing), per-page CSP for `/terminal`
   (ADR 0005 updated), `uvicorn.access` disabled outright (URLs carry token/tickets),

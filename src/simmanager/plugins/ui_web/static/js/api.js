@@ -51,4 +51,9 @@ export const api = {
   campaign: (id) => request("GET", `/campaigns/${id}`),
   matchRun: (id, body) => request("POST", `/campaigns/${id}/match`, body),
   unmatchRun: (id, runId) => request("POST", `/campaigns/${id}/unmatch`, { run_id: runId }),
+  terminals: () => request("GET", "/terminals"),
+  openTerminal: (body) => request("POST", "/terminals", body),
+  terminalTicket: (id) => request("POST", `/terminals/${encodeURIComponent(id)}/ticket`, {}),
+  closeTerminal: (id) => request("POST", `/terminals/${encodeURIComponent(id)}/close`, {}),
+  tmuxSessions: (cluster) => request("GET", `/clusters/${encodeURIComponent(cluster)}/tmux`),
 };

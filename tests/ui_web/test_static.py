@@ -3,9 +3,12 @@
 
 from __future__ import annotations
 
+import hashlib
 import posixpath
 import re
 from pathlib import Path
+
+import pytest
 
 from simmanager.plugins.ui_web.app import STATIC_DIR
 
@@ -25,7 +28,7 @@ def _modules() -> list[str]:
 async def test_modules_and_imports_are_served_as_javascript() -> None:
     async with running_web() as web, web.client() as c:
         seen: set[str] = set()
-        todo = ["/static/js/main.js"]
+        todo = ["/static/js/main.js", "/static/js/terminal/main.js"]
         while todo:
             url = todo.pop()
             if url in seen:
@@ -34,16 +37,20 @@ async def test_modules_and_imports_are_served_as_javascript() -> None:
             r = await c.get(url)
             assert r.status_code == 200, url
             assert r.headers["content-type"].startswith("text/javascript"), url
+            if "/vendor/" in url:
+                continue  # vendored modules are checked against their recorded hashes
             for spec in IMPORT_RE.findall(r.text):
                 assert spec.startswith("."), (url, spec)  # no bare or remote imports
                 todo.append(posixpath.normpath(posixpath.join(posixpath.dirname(url), spec)))
         assert set(_modules()) <= seen, set(_modules()) - seen  # no orphan module
-        css = await c.get("/static/css/app.css")
-        assert css.headers["content-type"].startswith("text/css")
+        for sheet in ("app.css", "terminal.css"):
+            css = await c.get(f"/static/css/{sheet}")
+            assert css.headers["content-type"].startswith("text/css")
 
 
-def test_index_has_no_inline_script_or_style() -> None:
-    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+@pytest.mark.parametrize("page", ["index.html", "terminal.html"])
+def test_pages_have_no_inline_script_or_style(page: str) -> None:
+    html = (STATIC_DIR / page).read_text(encoding="utf-8")
     assert "<style" not in html and " style=" not in html
     for tag in re.findall(r"<script[^>]*>", html):
         assert "src=" in tag, tag
@@ -55,3 +62,16 @@ def test_frontend_never_uses_inner_html() -> None:
         text = path.read_text(encoding="utf-8")
         assert "innerHTML" not in text and "insertAdjacentHTML" not in text, path
         assert 'setAttribute("style"' not in text, path
+
+
+HASH_RE = re.compile(r"^\s*-\s*`([^`]+)`\s+`([0-9a-f]{64})`", re.MULTILINE)
+
+
+@pytest.mark.parametrize("folder", ["uplot-1.6.31", "xterm-6.0.0"])
+def test_vendored_files_match_recorded_hashes(folder: str) -> None:
+    base = STATIC_DIR / "vendor" / folder
+    recorded = dict(HASH_RE.findall((base / "README.md").read_text(encoding="utf-8")))
+    assert recorded
+    for name, digest in recorded.items():
+        assert hashlib.sha256((base / name).read_bytes()).hexdigest() == digest, name
+    assert (base / "LICENSE").is_file()

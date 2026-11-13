@@ -4,9 +4,36 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SimManager terminal</title>
+<link rel="stylesheet" href="/static/vendor/xterm-6.0.0/xterm.css">
 <link rel="stylesheet" href="/static/css/app.css">
+<link rel="stylesheet" href="/static/css/terminal.css">
+<script type="module" src="/static/js/terminal/main.js"></script>
 </head>
-<body>
-<main id="view"><p class="muted">Terminal page: coming with M4 step 4.</p></main>
+<body class="terminal-page">
+<header class="topbar">
+  <a class="brand" href="/" target="simman-dashboard">SimManager</a>
+  <nav id="tabs" class="tabs"></nav>
+  <div class="new-terminal">
+    <button type="button" id="new-button" class="primary">+ Terminal</button>
+    <div id="new-menu" class="menu" hidden></div>
+  </div>
+  <span id="status" class="status"></span>
+</header>
+<p class="notice">Terminals close when SimManager stops. For long work use
+  <code>tmux</code> or <code>screen</code> on the cluster. Ctrl+C copies the selection
+  (otherwise it interrupts), Ctrl+V pastes.</p>
+<div id="panes" class="panes"><p class="muted empty">No terminal open: use “+ Terminal”.</p></div>
+
+<dialog id="auth-dialog">
+  <form id="auth-form" method="dialog">
+    <h2 id="auth-title"></h2>
+    <p id="auth-instructions" class="muted"></p>
+    <div id="auth-fields"></div>
+    <div class="actions">
+      <button type="button" id="auth-cancel">Cancel</button>
+      <button type="submit" id="auth-ok" class="primary">OK</button>
+    </div>
+  </form>
+</dialog>
 </body>
 </html>
