@@ -4,9 +4,11 @@ _Last updated: 2026-11-13_
 
 ## Current milestone
 
-**M3 — web UI**: in progress on `main` (plan approved 2026-11-13, see
-[roadmap.md#m3](roadmap.md#m3--web-ui)); steps 1–7 and campaign view done; final docs
-pending.
+**Next: M4 — terminal** (not planned yet; plan to be approved by the user first).
+
+- M3 — web UI: done 2026-11-13 on `main`
+  ([roadmap.md#m3](roadmap.md#m3--web-ui)). Awaiting the user's manual check on the
+  real clusters.
 
 - M5 — Excel campaigns: backend done on branch `m5-campaigns` (other agent) and merged
   into `main` on 2026-11-13 (migration `0004`). Its web view is built on `main` as part of
@@ -76,7 +78,7 @@ M5 backend (2026-11-13, merged into `main`):
   export preserving template sheets/styles after `ws.max_column`.
 - CLI (`cli/campaign.py`): `simman campaign import|list|show|match|unmatch|unmatched|export`.
 
-M3 (in progress):
+M3 (2026-11-13):
 - Durable log holds facts only (`ingest.DURABLE_EVENT_KINDS`, incl. new
   `run.solver_state_changed`); `series.updated`, `run.progress`, `backfill.progress` are
   bus-only; `storage.event_appended` streams the durable log live.
@@ -114,6 +116,7 @@ the new OpenSSH format would need `bcrypt`: not added, the user has no passphras
 
 ## Changelog
 
+- 2026-11-13 — M3 closed in roadmap/status; next milestone M4 (terminal).
 - 2026-11-13 — README: web UI and campaigns usage.
 - 2026-11-13 — M3: campaign view in the web UI (case table with computed and manual
   state, filters, linked runs with unmatch, never-launched cases, runs not associated

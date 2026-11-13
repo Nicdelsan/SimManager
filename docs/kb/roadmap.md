@@ -43,6 +43,8 @@ Changes from the plan agreed on 2026-11-13:
 
 ## M3 — Web UI
 
+Done 2026-11-13 (steps 1–7 + campaign view; see status.md changelog).
+
 Plan approved 2026-11-13 with these decisions:
 - Plugin `ui_web`: `ui-web` (FastAPI + uvicorn in the kernel's event loop, service
   `ui.web`) and `prompter-web` (`auth.prompter` over the dashboard WebSocket). No
@@ -62,6 +64,8 @@ Plan approved 2026-11-13 with these decisions:
   longer caches key passphrases. Browser opened automatically by `serve`.
 
 ## M5 — Excel campaigns (backend)
+
+Backend done and merged into `main` 2026-11-13; web view delivered with M3.
 
 Plan approved 2026-11-13 (branch `m5-campaigns`, migration `0004_campaigns.sql`):
 - Hierarchy `Project → Campaign → Case → Run`, preserving manual `State` separately from
