@@ -12,10 +12,10 @@ needs one.
 ### M5 (branch m5-campaigns)
 
 - Migration `0004_campaigns.sql`, `contracts/campaign.py` (`campaign` v1,
-  `campaign.manager` v1), and `campaign-sqlite` (`SqliteCampaignStore` in
-  `storage_sqlite/campaign.py`) implemented and tested.
-- Next: `campaign-excel` plugin (import/export, matching, state computation) and
-  `simman campaign` CLI.
+  `campaign.manager` v1), `campaign-sqlite`, and `campaign-excel` (`.xlsx` import/export,
+  `work_root`-scoped auto-matching on `monitor.polled`, `NNN_MMM` derivation, computed
+  case states, durable events) implemented and tested (incl. slow test on real sample).
+- Next: `simman campaign` CLI (`cli/campaign.py`).
 
 - M1 — SSH and SLURM discovery: done 2026-11-13. All three clusters pass
   `simman cluster test`; real job lines still to be seen (A2, A7).

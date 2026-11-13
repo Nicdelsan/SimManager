@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from simmanager.kernel import Plugin
 
+from .campaign_excel import CampaignExcelPlugin
 from .example import ExampleClockPlugin, ExampleTickerPlugin
 from .monitor import MonitorPlugin
 from .prompter_cli import CliPrompterPlugin
@@ -22,6 +23,7 @@ BUILTIN_PLUGINS: tuple[type[Plugin], ...] = (
     SqliteStoragePlugin,
     SqliteTimeSeriesPlugin,
     SqliteCampaignPlugin,
+    CampaignExcelPlugin,
     CliPrompterPlugin,
     SshTransportPlugin,
     SlurmSchedulerPlugin,
