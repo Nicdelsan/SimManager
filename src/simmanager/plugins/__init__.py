@@ -8,6 +8,7 @@ from .campaign_excel import CampaignExcelPlugin
 from .example import ExampleClockPlugin, ExampleTickerPlugin
 from .monitor import MonitorPlugin
 from .prompter_cli import CliPrompterPlugin
+from .rules import RulesPlugin
 from .scheduler_slurm import SlurmSchedulerPlugin
 from .snapshot import SnapshotPlugin
 from .solver_converge import ConvergeSolverPlugin
@@ -35,6 +36,7 @@ BUILTIN_PLUGINS: tuple[type[Plugin], ...] = (
     SlurmSchedulerPlugin,
     MonitorPlugin,
     SnapshotPlugin,
+    RulesPlugin,
     ConvergeSolverPlugin,
     OpenFoamSolverPlugin,
     SolverIngestPlugin,
