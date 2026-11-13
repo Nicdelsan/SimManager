@@ -74,8 +74,6 @@ class _Cluster:
         self.failures = 0
         self.retry_at: datetime | None = None
         self.auth_fingerprint: tuple[tuple[str, float], ...] | None = None
-        self.passphrase: str | None = None
-        """Kept in memory for this process only, never written anywhere."""
 
 
 class SshTransport:
@@ -169,9 +167,8 @@ class SshTransport:
     async def _open(self, c: _Cluster) -> asyncssh.SSHClientConnection:
         host, kwargs = connect_options(c.profile)
         kwargs["client_factory"] = lambda: _Client(self, c)
-        if c.passphrase is not None:
-            kwargs["passphrase"] = c.passphrase
-
+        # A key passphrase is asked when needed and dropped after the attempt: never kept
+        # for reconnections (secrets must not stay in memory after use).
         for attempt in range(3):
             try:
                 return await asyncssh.connect(host, **kwargs)
@@ -190,7 +187,7 @@ class SshTransport:
                 if not answers:
                     msg = "the SSH key is encrypted and no passphrase was given"
                     raise _NeedsAuthError(msg) from exc
-                c.passphrase = kwargs["passphrase"] = answers[0]
+                kwargs["passphrase"] = answers[0]
         raise _NeedsAuthError("wrong SSH key passphrase")
 
     async def _ensure_valid_certs(self, c: _Cluster) -> None:

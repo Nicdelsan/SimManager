@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import logging
 import socket
 import sys
 from collections.abc import Callable, Generator
@@ -16,6 +17,7 @@ from .hub import Hub
 from .security import LOOPBACK, TOKEN_PARAM, SecurityPolicy
 
 STARTUP_TIMEOUT_S = 10.0
+UVICORN_LOGGER = "uvicorn.error"
 SHUTDOWN_TIMEOUT_S = 5.0
 
 
@@ -83,6 +85,11 @@ class UiWebServer:
 
     # ------------------------------------------------------------ lifecycle
     async def start(self, app: object, sock: socket.socket) -> asyncio.Task[None]:
+        # uvicorn's WebSocket implementation logs every frame at DEBUG on this logger,
+        # including password/OTP answers: never let it go below INFO.
+        uv_log = logging.getLogger(UVICORN_LOGGER)
+        if uv_log.level < logging.INFO:
+            uv_log.setLevel(logging.INFO)
         config = uvicorn.Config(
             app,  # type: ignore[arg-type]
             lifespan="off",

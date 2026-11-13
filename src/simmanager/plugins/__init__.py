@@ -13,7 +13,7 @@ from .solver_ingest import SolverIngestPlugin
 from .solver_openfoam import OpenFoamSolverPlugin
 from .storage_sqlite import SqliteStoragePlugin, SqliteTimeSeriesPlugin
 from .transport_ssh import SshTransportPlugin
-from .ui_web import UiWebPlugin
+from .ui_web import UiWebPlugin, WebPrompterPlugin
 
 BUILTIN_PLUGINS: tuple[type[Plugin], ...] = (
     SqliteStoragePlugin,
@@ -26,11 +26,15 @@ BUILTIN_PLUGINS: tuple[type[Plugin], ...] = (
     OpenFoamSolverPlugin,
     SolverIngestPlugin,
     UiWebPlugin,
+    WebPrompterPlugin,
     ExampleClockPlugin,
     ExampleTickerPlugin,
 )
 
 DISABLED_BY_DEFAULT: frozenset[str] = frozenset({"example-clock", "example-ticker"})
 
-WEB_ONLY_PLUGINS: frozenset[str] = frozenset({"ui-web"})
+WEB_ONLY_PLUGINS: frozenset[str] = frozenset({"ui-web", "prompter-web"})
 """Started only by `simman serve`: other commands must not open a web server."""
+
+PROMPTER_PLUGINS: dict[str, str] = {"cli": "prompter-cli", "web": "prompter-web"}
+"""Providers of `auth.prompter`; exactly one runs (core config key `prompter`)."""

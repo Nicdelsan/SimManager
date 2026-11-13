@@ -32,7 +32,6 @@ from simmanager.contracts.transport import (
 from simmanager.kernel import ConfigError, Kernel, PluginState
 from simmanager.kernel.config import format_validation_error
 from simmanager.logging_setup import setup_logging
-from simmanager.plugins import WEB_ONLY_PLUGINS
 from simmanager.plugins.scheduler_slurm.parse import SACCT_DISABLED, parse_squeue, squeue_argv
 from simmanager.plugins.transport_ssh import load_clusters
 from simmanager.plugins.ui_web import UiWebServer
@@ -68,14 +67,11 @@ def _prepare(project: Path | None, *, monitor_loop: bool = False, web: bool = Fa
     (`serve`, `monitor`): other commands must not open SSH connections by themselves.
     The web UI plugins run only with `web=True` (`serve`)."""
     try:
-        setup = prepare(project)
+        setup = prepare(project, web=web)
     except ConfigError as exc:
         console.print(f"[red]configuration error:[/] {exc}")
         raise typer.Exit(2) from exc
     setup.core.plugins.setdefault("monitor", {})["loop"] = monitor_loop
-    if not web:
-        setup.disabled += [c.name for c in setup.enabled if c.name in WEB_ONLY_PLUGINS]
-        setup.enabled = [c for c in setup.enabled if c.name not in WEB_ONLY_PLUGINS]
     setup_logging(paths.log_dir(), level=setup.core.log_level)
     for warning in setup.warnings:
         console.print(f"[yellow]warning:[/] {warning}")

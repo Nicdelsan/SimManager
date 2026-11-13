@@ -89,6 +89,7 @@ SQLite in WAL mode via `aiosqlite`, hand-written SQL, numbered migrations in
 | Plugin | Provides | Injects | Notes |
 |---|---|---|---|
 | `prompter-cli` | `auth.prompter` | — | getpass/input; answers None when stdin is not a TTY. |
+| `prompter-web` (M3) | `auth.prompter` | `ui.web` | Prompts over the dashboard WebSocket (`auth.prompt`, `auth.confirm`, `auth.closed`; answers `auth.answer`, `auth.confirm_answer`, `auth.cancel`). First answer wins; late browsers get pending prompts; timeout `prompt_timeout_s` (300 s) → no answer → `AWAITING_AUTH`. Exactly one prompter runs: core key `prompter: auto\|cli\|web` (auto = web under `serve`, cli otherwise), applied by `app.prepare(web=...)`. |
 | `transport-ssh` | `transport` | `storage` | asyncssh, one lazy connection per cluster, read-only policy and auth states ([ADR 0004](adr/0004-read-only-ssh-and-auth-states.md)). Reads `clusters.yaml`. |
 | `scheduler-slurm` | `scheduler.slurm` | — | Pure parsers in `parse.py`; `sacct`, falling back to `scontrol` when accounting is disabled (remembered per cluster). |
 | `monitor` | `monitor` | `storage`, `transport` | One poll loop per cluster (adaptive 60/180/300 s ±10 %); scheduler looked up as `scheduler.<profile.scheduler>`. `loop: false` = on demand only (CLI). |

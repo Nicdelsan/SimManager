@@ -29,7 +29,7 @@ M1 (2026-11-13):
   short-lived SSH certificates (expiry checked, renew command after confirmation);
   states CONNECTED/BACKOFF/AWAITING_AUTH/FAILED with no blind auth retries; read-only
   allowlist; `run_mutating` logged; SFTP `stat/listdir/read_range` (for M2).
-- `prompter-cli`: terminal prompts.
+- `prompter-cli`: terminal prompts (`prompter-web` in the browser under `serve`, M3).
 - `scheduler-slurm`: squeue/sacct/scontrol parsers, accounting auto-detection.
 - `monitor`: per-cluster adaptive polling, jobs + runs + events, degraded/recovered.
 - Storage migration 0002: `jobs`, `runs`.
@@ -68,6 +68,8 @@ M3 (in progress):
 - REST API under `/api` (see architecture.md, `ui-web` row); ETA = linear rate of the
   progress series over the last hour of wall time.
 - Live WebSocket: subscribed plots get only new points, ≤ 1 update/s per run.
+- `prompter-web`: password/OTP/confirmations in the browser, 300 s timeout →
+  `AWAITING_AUTH`; `prompter: auto|cli|web`.
 
 ## Not yet implemented
 
@@ -87,6 +89,10 @@ the new OpenSSH format would need `bcrypt`: not added, the user has no passphras
 
 ## Changelog
 
+- 2026-11-13 — M3 step 6: `prompter-web` + core key `prompter: auto|cli|web`; OTP login
+  end-to-end through the browser tested against the in-process SSH server (OTP absent
+  from logs, events and the DB file); key passphrases no longer cached by the transport;
+  `uvicorn.error` pinned at ≥ INFO (its DEBUG logs every WebSocket frame).
 - 2026-11-13 — M3 step 5: live WebSocket traffic (durable events, cluster state, polls,
   progress, throttled backfill progress, per-run throttled plot points with reload on
   big jumps); `ui-web.live_interval_s` (default 1 s).

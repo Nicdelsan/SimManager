@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
@@ -24,7 +24,7 @@ from .kernel import (
     load_yaml_file,
 )
 from .kernel.config import format_validation_error
-from .plugins import BUILTIN_PLUGINS, DISABLED_BY_DEFAULT
+from .plugins import BUILTIN_PLUGINS, DISABLED_BY_DEFAULT, PROMPTER_PLUGINS, WEB_ONLY_PLUGINS
 
 
 class CoreConfig(BaseModel):
@@ -33,6 +33,9 @@ class CoreConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     log_level: str = "INFO"
+    prompter: Literal["auto", "cli", "web"] = "auto"
+    """Where passwords/OTP codes are asked. auto: the web UI under `simman serve`,
+    the terminal for every other command."""
     plugins: dict[str, dict[str, Any]] = Field(default_factory=dict)
     """Per-plugin section, keyed by plugin name. `enabled: false` switches a plugin off."""
 
@@ -83,8 +86,11 @@ def build_layers(discovery: DiscoveryResult, project_file: Path | None) -> list[
     return layers
 
 
-def prepare(project: Path | None = None) -> AppSetup:
-    """Discover plugins and compose the configuration. Raises ConfigError on invalid config."""
+def prepare(project: Path | None = None, *, web: bool = False) -> AppSetup:
+    """Discover plugins and compose the configuration. Raises ConfigError on invalid config.
+
+    `web=True` (only `simman serve`) enables the web UI plugins; exactly one
+    `auth.prompter` provider is enabled, chosen by the `prompter` key."""
     discovery = discover(BUILTIN_PLUGINS)
     composed = compose(build_layers(discovery, find_project_file(project)))
     try:
@@ -100,13 +106,17 @@ def prepare(project: Path | None = None) -> AppSetup:
         if name not in known
     ]
 
+    off = set() if web else set(WEB_ONLY_PLUGINS)
+    wanted_prompter = "web" if web and core.prompter != "cli" else "cli"
+    off |= {name for kind, name in PROMPTER_PLUGINS.items() if kind != wanted_prompter}
+
     enabled: list[type[Plugin]] = []
     disabled: list[str] = []
     for p in discovery.plugins:
         flag = core.plugins.get(p.name, {}).get("enabled", True)
         if not isinstance(flag, bool):
             raise ConfigError(f"plugins.{p.name}.enabled: must be true or false, got {flag!r}")
-        if flag:
+        if flag and p.name not in off:
             enabled.append(p.cls)
         else:
             disabled.append(p.name)

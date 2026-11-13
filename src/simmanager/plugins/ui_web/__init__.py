@@ -6,10 +6,12 @@ Only `simman serve` enables it (see `WEB_ONLY_PLUGINS`). Security: `security.py`
 from __future__ import annotations
 
 import time
-from typing import Any
+from collections.abc import Mapping
+from typing import Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from simmanager.contracts import auth as auth_contract
 from simmanager.contracts import monitor as monitor_contract
 from simmanager.contracts import storage as storage_contract
 from simmanager.contracts import transport as transport_contract
@@ -22,6 +24,7 @@ from .api import Api, ClusterStatusCache, build_router, event_json
 from .app import create_app
 from .hub import Hub
 from .live import Live, RateLimit
+from .prompter import WebPrompter
 from .security import SecurityPolicy, new_token
 from .server import UiWebError, UiWebServer, bind_loopback
 
@@ -104,4 +107,40 @@ class UiWebPlugin(Plugin):
         return server
 
 
-__all__ = ["UiWebConfig", "UiWebError", "UiWebPlugin", "UiWebServer"]
+class WebPrompterConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    prompt_timeout_s: float = Field(300.0, gt=0, le=3600)
+    """Unanswered prompts end after this; the cluster then waits for "Reconnect"."""
+
+
+class WebPrompterPlugin(Plugin):
+    name = "prompter-web"
+    provides = auth_contract.SERVICE_KEY
+    contract_version = auth_contract.CONTRACT_VERSION
+    inject: ClassVar[Mapping[str, int]] = {contract.SERVICE_KEY: contract.CONTRACT_VERSION}
+    config_schema = WebPrompterConfig
+    description = "Asks passwords, OTP codes and confirmations in the web UI."
+
+    def apply(self, ctx: Context) -> WebPrompter:
+        assert isinstance(ctx.config, WebPrompterConfig)
+        prompter = WebPrompter(
+            ctx.services.require(contract.SERVICE_KEY),
+            timeout_s=ctx.config.prompt_timeout_s,
+            log=ctx.log,
+        )
+        for unsubscribe in prompter.install():
+            ctx.add_disposer(unsubscribe, "ui handler")
+        ctx.add_disposer(prompter.close, "end pending prompts")
+        return prompter
+
+
+__all__ = [
+    "UiWebConfig",
+    "UiWebError",
+    "UiWebPlugin",
+    "UiWebServer",
+    "WebPrompter",
+    "WebPrompterConfig",
+    "WebPrompterPlugin",
+]

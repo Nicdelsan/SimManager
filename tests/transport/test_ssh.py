@@ -127,6 +127,18 @@ async def test_encrypted_key_asks_passphrase(server: SshTestServer, h: Harness) 
     assert "wrong" in h.prompter.asked[1].title
 
 
+async def test_passphrase_is_not_kept_for_reconnections(server: SshTestServer, h: Harness) -> None:
+    key = server.new_client_key("id_enc", passphrase="s3cret")
+    assert h.prompter is not None
+    h.prompter.answers = [["s3cret"], ["s3cret"]]
+    t = h.transport(server.profile(key_files=[str(key)]))
+    await t.session(C)
+    await t.reset(C)  # drops the connection, as a network loss would
+    await t.session(C)
+    assert [r.kind for r in h.prompter.asked] == ["passphrase", "passphrase"]
+    assert not any("s3cret" in repr(v) for v in vars(t._clusters[C]).values())
+
+
 async def test_encrypted_key_without_prompter_awaits_auth(
     server: SshTestServer, h: Harness
 ) -> None:
