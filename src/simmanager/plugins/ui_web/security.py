@@ -9,6 +9,8 @@ send requests to it. Defences:
 - Origin required and checked on WebSockets and state-changing requests (cross-site
   WebSocket hijacking, CSRF); state-changing requests must be `application/json`;
 - `Content-Security-Policy: default-src 'self'`, `nosniff`, `Referrer-Policy: no-referrer`.
+  The terminal page (`/terminal`) alone also allows inline styles: xterm.js creates
+  `<style>` elements at runtime. Scripts stay `'self'` everywhere.
 """
 
 from __future__ import annotations
@@ -23,9 +25,12 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 LOOPBACK = "127.0.0.1"
 TOKEN_PARAM = "token"
+CSP = "default-src 'self'; frame-ancestors 'none'"
+TERMINAL_PAGE = "/terminal"
+TERMINAL_CSP = "default-src 'self'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'"
 UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 SECURITY_HEADERS: tuple[tuple[str, str], ...] = (
-    ("Content-Security-Policy", "default-src 'self'; frame-ancestors 'none'"),
+    ("Content-Security-Policy", CSP),
     ("X-Content-Type-Options", "nosniff"),
     ("Referrer-Policy", "no-referrer"),
     ("Cache-Control", "no-store"),
@@ -131,6 +136,8 @@ class SecurityMiddleware:
                 out = MutableHeaders(scope=message)
                 for name, value in SECURITY_HEADERS:
                     out[name] = value
+                if scope["path"] == TERMINAL_PAGE:
+                    out["Content-Security-Policy"] = TERMINAL_CSP
             await send(message)
 
         await self.app(scope, receive, send_with_headers)

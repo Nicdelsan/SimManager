@@ -33,10 +33,20 @@ Through this UI the user answers passwords and OTP codes for HPC accounts.
 6. **Headers** on every response: `Content-Security-Policy: default-src 'self';
    frame-ancestors 'none'`, `X-Content-Type-Options: nosniff`, `Referrer-Policy:
    no-referrer`, `Cache-Control: no-store`. No inline scripts or styles in pages; vendored
-   libraries are served from `/static`.
+   libraries are served from `/static`. **Exception (M4, 2026-11-13):** the terminal page
+   `/terminal` alone gets `style-src 'self' 'unsafe-inline'`, because xterm.js creates
+   `<style>` elements at runtime (renderer cell sizes and theme). Scripts stay `'self'`
+   there too, and pages never build HTML from strings, so inline styles cannot be injected
+   by cluster data. The rest of the UI keeps the strict policy (tested).
 7. **Secrets.** Answers to authentication prompts travel only over the WebSocket, are
    never logged or written to the event log, and no reference is kept after use. Hub
    errors log the message type, never the message.
+8. **Access log off, for real.** URLs carry the login token and terminal tickets. uvicorn's
+   `access_log=False` only detaches the access logger's handlers (it still logs if an
+   ancestor has one), so `uvicorn.access` is also disabled outright (M4).
+9. **Terminal WebSockets (M4).** `/ws/term/{id}` passes the same cookie/Host/Origin checks
+   and needs a single-use ticket (30 s) bound to that session, issued by an authenticated,
+   Origin-checked POST. Terminal bytes are never logged (see ADR 0007).
 
 ## Consequences
 
@@ -44,5 +54,6 @@ Through this UI the user answers passwords and OTP codes for HPC accounts.
   invalidates open tabs, which then show the login hint.
 - All security checks live in one pure ASGI middleware (`plugins/ui_web/security.py`),
   covered by tests for each rule.
-- Plugins reach browsers only through the `ui.web` contract; per-session channels (the M4
-  terminal) will be added as dedicated authenticated WebSocket endpoints.
+- Plugins reach browsers only through the `ui.web` contract; the M4 terminal has its own
+  authenticated WebSocket endpoint in `ui-web` (`plugins/ui_web/terminal.py`) on top of
+  the `terminal` service.

@@ -247,6 +247,8 @@ def build_router(api: Api) -> APIRouter:
     @r.get("/clusters")
     async def clusters() -> list[dict[str, Any]]:
         transport = api.transport
+        terminals = api.services.get("terminal")
+        sessions = terminals.sessions() if terminals is not None else []
         out = []
         for cid, profile in transport.clusters().items():
             status = api.status.clusters.get(cid, ClusterStatus())
@@ -259,6 +261,15 @@ def build_router(api: Api) -> APIRouter:
                     "detail": status.detail,
                     "state_at": status.state_at,
                     "last_poll": status.last_poll,
+                    "work_roots": list(profile.work_roots),
+                    "terminals": {
+                        "available": terminals is not None,
+                        "max": profile.max_terminals,
+                        "tmux": profile.terminal_tmux,
+                        "open": sum(
+                            1 for i in sessions if i.cluster_id == cid and i.state == "open"
+                        ),
+                    },
                 }
             )
         return out

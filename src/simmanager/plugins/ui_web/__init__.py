@@ -14,6 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from simmanager.contracts import auth as auth_contract
 from simmanager.contracts import monitor as monitor_contract
 from simmanager.contracts import storage as storage_contract
+from simmanager.contracts import terminal as terminal_contract
 from simmanager.contracts import transport as transport_contract
 from simmanager.contracts import ui as contract
 from simmanager.contracts.monitor import PollReport
@@ -28,6 +29,7 @@ from .live import Live, RateLimit
 from .prompter import WebPrompter
 from .security import SecurityPolicy, new_token
 from .server import UiWebError, UiWebServer, bind_loopback
+from .terminal import TerminalApi, build_terminal_router, build_terminal_ws_router, terminal_json
 
 
 class UiWebConfig(BaseModel):
@@ -89,14 +91,23 @@ class UiWebPlugin(Plugin):
             if type(run_id) is int:
                 live.series_updated(run_id)
 
+        async def on_terminal_state(info: terminal_contract.TerminalInfo) -> None:
+            await hub.broadcast({"type": "terminal.state", **terminal_json(info)})
+
         ctx.on(storage_contract.EVENT_APPENDED, on_event_appended)
+        ctx.on(terminal_contract.STATE_EVENT, on_terminal_state)
         ctx.on("run.progress", on_run_progress)
         ctx.on("backfill.progress", on_backfill)
         ctx.on("series.updated", on_series_updated)
         try:
-            task = await server.start(
-                create_app(policy, hub, [build_router(api), build_campaign_router(api)]), sock
+            terminals = TerminalApi(api)
+            app = create_app(
+                policy,
+                hub,
+                [build_router(api), build_campaign_router(api), build_terminal_router(terminals)],
+                [build_terminal_ws_router(terminals)],
             )
+            task = await server.start(app, sock)
         except BaseException:
             sock.close()
             raise

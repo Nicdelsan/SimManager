@@ -73,14 +73,18 @@ async def running_web(
 
 
 async def ws_handshake_status(
-    port: int, *, host: str | None = None, headers: Sequence[tuple[str, str]] = ()
+    port: int,
+    *,
+    host: str | None = None,
+    headers: Sequence[tuple[str, str]] = (),
+    path: str = "/ws",
 ) -> int:
-    """Send a raw WebSocket upgrade to /ws and return the HTTP status of the answer."""
+    """Send a raw WebSocket upgrade to `path` and return the HTTP status of the answer."""
     reader, writer = await asyncio.open_connection("127.0.0.1", port)
     try:
         key = base64.b64encode(os.urandom(16)).decode()
         lines = [
-            "GET /ws HTTP/1.1",
+            f"GET {path} HTTP/1.1",
             f"Host: {host or f'127.0.0.1:{port}'}",
             "Upgrade: websocket",
             "Connection: Upgrade",

@@ -5,7 +5,7 @@ _Last updated: 2026-11-13_
 ## Current milestone
 
 **M4 — integrated SSH terminal: in progress on `main`** (plan approved 2026-11-13,
-[roadmap.md#m4](roadmap.md#m4--integrated-ssh-terminal)). Done: step 1 (`open_pty`), step 2 (`terminal` service).
+[roadmap.md#m4](roadmap.md#m4--integrated-ssh-terminal)). Done: step 1 (`open_pty`), step 2 (`terminal` service), step 3 (web endpoints).
 In parallel another agent builds M6 on branch `m6-snapshots` (migration `0005`,
 ADR `0006`); M4 uses migration `0006` / ADR `0007` if needed and assumptions from A400.
 
@@ -119,6 +119,11 @@ the new OpenSSH format would need `bcrypt`: not added, the user has no passphras
 
 ## Changelog
 
+- 2026-11-13 — M4 step 3: `ui-web` terminal endpoints (`/api/terminals`, single-use
+  tickets, `/ws/term/{id}` binary WebSocket, tmux listing), per-page CSP for `/terminal`
+  (ADR 0005 updated), `uvicorn.access` disabled outright (URLs carry token/tickets),
+  `/api/clusters` reports terminal limits; tests for tickets, Origin/Host/cookie,
+  re-attach/takeover, close, auth prompt then shell, no terminal content in logs/events.
 - 2026-11-13 — M4 step 2: contract `terminal` v1 and web-only plugin `terminal`
   (sessions, 1 MiB replay buffer, single attachment with takeover, orphan expiry 30 min,
   backpressure, one explicit reconnect for clusters awaiting auth, tmux naming above

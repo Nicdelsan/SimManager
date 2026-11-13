@@ -90,6 +90,9 @@ class UiWebServer:
         uv_log = logging.getLogger(UVICORN_LOGGER)
         if uv_log.level < logging.INFO:
             uv_log.setLevel(logging.INFO)
+        # URLs carry the login token and terminal tickets. `access_log=False` only detaches
+        # the access logger's handlers; uvicorn still logs when any ancestor has one.
+        logging.getLogger("uvicorn.access").disabled = True
         config = uvicorn.Config(
             app,  # type: ignore[arg-type]
             lifespan="off",

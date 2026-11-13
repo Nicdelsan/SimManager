@@ -197,6 +197,10 @@ class _Server(asyncssh.SSHServer):
 CRLF = "\r\n"
 
 
+OUTPUT_ONLY = "output-only-91c2"
+"""Printed by the fake shell's `hush` command, never typed (privacy tests)."""
+
+
 async def _fake_shell_loop(owner: SshTestServer, process: asyncssh.SSHServerProcess[str]) -> None:
     """A tiny interactive shell: `pwd`, `echo ...`, `exit N`, `sleep N`; prints resizes."""
     command = process.command
@@ -222,6 +226,8 @@ async def _fake_shell_loop(owner: SshTestServer, process: asyncssh.SSHServerProc
             out.write(cwd + CRLF)
         elif word == "echo":
             out.write(rest + CRLF)
+        elif word == "hush":
+            out.write(OUTPUT_ONLY + CRLF)
         elif word == "sleep":
             await asyncio.sleep(float(rest or 1))
         elif word == "exit":
