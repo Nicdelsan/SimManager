@@ -302,9 +302,7 @@ async def test_ambiguity_manual_match_exclusion_and_monitor_polled(tmp_path: Pat
         await kernel.bus.emit(
             monitor_contract.POLLED_EVENT, PollReport(cluster_id="cl", ok=True, discovered=1)
         )
-        await kernel.bus.emit(
-            monitor_contract.POLLED_EVENT, PollReport(cluster_id="cl", ok=True)
-        )
+        await kernel.bus.emit(monitor_contract.POLLED_EVENT, PollReport(cluster_id="cl", ok=True))
 
         assert await store.links_for_campaign(camp.id) == []
         amb_events = await storage.events(kinds=[campaign_contract.EVENT_AMBIGUOUS_MATCH])
@@ -318,17 +316,13 @@ async def test_ambiguity_manual_match_exclusion_and_monitor_polled(tmp_path: Pat
         # Manual match locks the link and survives subsequent polls.
         link = await mgr.match_run("amb", "01", run_id, project_name="p")
         assert link.locked is True
-        await kernel.bus.emit(
-            monitor_contract.POLLED_EVENT, PollReport(cluster_id="cl", ok=True)
-        )
+        await kernel.bus.emit(monitor_contract.POLLED_EVENT, PollReport(cluster_id="cl", ok=True))
         links = await store.links_for_campaign(camp.id)
         assert len(links) == 1 and links[0].match_kind is MatchKind.MANUAL
 
         # Manual unmatch adds exclusion so auto-match does not re-link it.
         await mgr.unmatch_run("amb", run_id, project_name="p")
-        await kernel.bus.emit(
-            monitor_contract.POLLED_EVENT, PollReport(cluster_id="cl", ok=True)
-        )
+        await kernel.bus.emit(monitor_contract.POLLED_EVENT, PollReport(cluster_id="cl", ok=True))
         assert await store.links_for_campaign(camp.id) == []
     finally:
         await kernel.stop()
