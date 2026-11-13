@@ -14,6 +14,7 @@ Plan: [roadmap.md#m2](roadmap.md#m2--incremental-readers-and-parsers).
 - `contracts/solver.py` (`solver.<kind>` v1): `WatchedFile`, `SolverStatusUpdate`, `ParsedChunk`, `Solver` protocol.
 - `readers/`: `IncrementalReader` (chunked `RemoteSession.read_range`, truncation/replacement detection via `size < offset` and 256-byte prefix, partial last line buffering, tail-first auto-backfill with record-aligned seam) + `LocalRemoteSession`.
 - `solver-converge` (`solver.converge`): discovery (`inputs.in`, `logout.txt`, `outputs_*/stream0/*.out`, `*.out`) + pure parsers for multi-doc YAML `inputs.in`, ANSI-stripped `logout.txt`, and generic multi-qualifier `.out` headers.
+- `solver-openfoam` (`solver.openfoam`): discovery (`system/controlDict`, `system/decomposeParDict`, `log.<app>` / `log.out`) + pure parsers (`foamLog` first-residual rule, anchored `^Time =`, pre-`Time` Courant/deltaT block alignment, custom `min/max`, `End`, `FOAM FATAL [IO] ERROR`). `postProcessing/**` deferred until a sample is available.
 
 ### To wire at M1+M2 merge
 
