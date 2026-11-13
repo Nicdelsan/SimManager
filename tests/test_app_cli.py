@@ -23,7 +23,7 @@ def _write_user_config(text: str) -> None:
 def test_defaults_enable_storage_disable_examples() -> None:
     setup = prepare()
     assert {"storage-sqlite", "timeseries-sqlite"} <= {c.name for c in setup.enabled}
-    assert set(setup.disabled) == {"example-clock", "example-ticker"}
+    assert set(setup.disabled) == {"example-clock", "example-ticker", "ui-web", "prompter-web"}
     assert setup.config.origins[("plugins", "storage-sqlite", "enabled")] == "defaults"
 
 
@@ -107,3 +107,22 @@ def test_cli_reports_config_errors() -> None:
     result = runner.invoke(app, ["plugins"])
     assert result.exit_code == 2
     assert "configuration error" in result.output
+
+
+@pytest.mark.parametrize(
+    ("prompter", "web", "expected"),
+    [
+        (None, False, {"prompter-cli"}),
+        (None, True, {"ui-web", "prompter-web"}),
+        ("web", False, {"prompter-cli"}),  # no web server outside `serve`
+        ("cli", True, {"ui-web", "prompter-cli"}),
+    ],
+)
+def test_web_plugins_and_prompter_selection(
+    prompter: str | None, web: bool, expected: set[str]
+) -> None:
+    if prompter:
+        _write_user_config(f"prompter: {prompter}\n")
+    setup = prepare(web=web)
+    names = {c.name for c in setup.enabled}
+    assert names & {"ui-web", "prompter-web", "prompter-cli"} == expected

@@ -6,6 +6,7 @@ import asyncio
 import contextlib
 import re
 import shlex
+import webbrowser
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Annotated, Any, TypeVar
@@ -33,6 +34,7 @@ from simmanager.kernel.config import format_validation_error
 from simmanager.logging_setup import setup_logging
 from simmanager.plugins.scheduler_slurm.parse import SACCT_DISABLED, parse_squeue, squeue_argv
 from simmanager.plugins.transport_ssh import load_clusters
+from simmanager.plugins.ui_web import UiWebServer
 
 from .campaign import campaign_app
 from .ingest import ingest_app
@@ -62,11 +64,12 @@ _STATE_STYLE = {
 }
 
 
-def _prepare(project: Path | None, *, monitor_loop: bool = False) -> AppSetup:
+def _prepare(project: Path | None, *, monitor_loop: bool = False, web: bool = False) -> AppSetup:
     """Compose config and logging. The monitor polls in the background only when asked
-    (`serve`, `monitor`): other commands must not open SSH connections by themselves."""
+    (`serve`, `monitor`): other commands must not open SSH connections by themselves.
+    The web UI plugins run only with `web=True` (`serve`)."""
     try:
-        setup = prepare(project)
+        setup = prepare(project, web=web)
     except ConfigError as exc:
         console.print(f"[red]configuration error:[/] {exc}")
         raise typer.Exit(2) from exc
@@ -121,13 +124,36 @@ def plugins(project: ProjectOpt = None) -> None:
 
 
 @app.command()
-def serve(project: ProjectOpt = None) -> None:
-    """Run SimManager until Ctrl+C: monitors the clusters (the web UI is added in M3)."""
-    setup = _prepare(project, monitor_loop=True)
+def serve(
+    port: Annotated[
+        int | None, typer.Option("--port", help="Web UI port on 127.0.0.1 (default 8765).")
+    ] = None,
+    no_browser: Annotated[
+        bool, typer.Option("--no-browser", help="Do not open the browser.")
+    ] = False,
+    project: ProjectOpt = None,
+) -> None:
+    """Run SimManager until Ctrl+C: monitor the clusters and serve the web UI."""
+    setup = _prepare(project, monitor_loop=True, web=True)
+    web_cfg = setup.core.plugins.setdefault("ui-web", {})
+    if port is not None:
+        web_cfg["port"] = port
+    open_browser = bool(web_cfg.get("open_browser", True)) and not no_browser
 
     async def body(kernel: Kernel) -> None:
         active = [i.name for i in kernel.info() if i.state is PluginState.ACTIVE]
-        console.print(f"SimManager running with: {', '.join(active)}. Ctrl+C to stop.")
+        console.print(f"SimManager running with: {', '.join(active)}.")
+        ui = kernel.services.get("ui.web")
+        if isinstance(ui, UiWebServer):
+            # The login URL carries the session token: printed here, never logged.
+            console.print(f"Web UI: [bold]{ui.login_url}[/]", soft_wrap=True)
+            if open_browser:
+                await asyncio.to_thread(webbrowser.open, ui.login_url)
+        else:
+            info = next((i for i in kernel.info() if i.name == "ui-web"), None)
+            reason = info.error if info and info.error else "plugin disabled"
+            console.print(f"[red]web UI not available:[/] {reason}")
+        console.print("Ctrl+C to stop.")
         await asyncio.Event().wait()
 
     with contextlib.suppress(KeyboardInterrupt):

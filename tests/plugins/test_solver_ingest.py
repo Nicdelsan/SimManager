@@ -90,6 +90,13 @@ async def test_sync_run_converge_and_openfoam_fixtures(tmp_path: Path) -> None:
     ingestor: IngestService = kernel.services.require(ingest_contract.SERVICE_KEY)
     ts: TimeSeriesStore = kernel.services.require(ts_contract.SERVICE_KEY)
     storage: Storage = kernel.services.require(storage_contract.SERVICE_KEY)
+    bus_kinds: list[str] = []
+    for kind in ("series.updated", "run.progress"):
+
+        async def record(payload: object, kind: str = kind) -> None:
+            bus_kinds.append(kind)
+
+        kernel.bus.on(kind, record)
 
     conv_session = LocalRemoteSession(FIXTURES_ROOT / "converge")
     r_conv = await storage.create_run(work_dir=conv_session.root_posix)
@@ -110,9 +117,20 @@ async def test_sync_run_converge_and_openfoam_fixtures(tmp_path: Path) -> None:
     assert res_of.solver_state is SolverState.COMPLETED
     assert res_of.progress == pytest.approx(1.0)
 
+    # Durable log: facts only. Data/progress notifications: bus only.
     ev_kinds = {e.kind for e in await storage.events(run_id=r_conv.id)}
-    assert "series.updated" in ev_kinds
-    assert "run.progress" in ev_kinds
+    assert {"run.solver_state_changed", "solver.finished"} <= ev_kinds
+    assert ev_kinds <= ingest_contract.DURABLE_EVENT_KINDS
+    assert {"series.updated", "run.progress"} <= set(bus_kinds)
+
+    # Progress against wall time, for the ETA and the progress plot.
+    progress = [
+        s
+        for s in await ts.list_series(r_conv.id)
+        if s.file_path == ingest_contract.PROGRESS_SERIES.file_path
+    ]
+    assert len(progress) == 1 and progress[0].last_y == pytest.approx(1.0)
+    assert progress[0].last_x is not None and progress[0].last_x > 1.7e9  # epoch seconds
 
     series_conv = await ts.list_series(r_conv.id)
     assert any(s.file_path == "thermo.out" for s in series_conv)
@@ -375,3 +393,54 @@ async def test_monitor_polled_uses_runs_and_events(tmp_path: Path) -> None:
 
     await _wait_until(_is_terminal_removed)
     await kernel.stop()
+
+
+async def test_manual_runs_are_tracked_and_resumed(tmp_path: Path) -> None:
+    session = LocalRemoteSession(FIXTURES_ROOT / "converge", cluster_id="c1", virtual_root="/case")
+    fake_transport = _FakeTransport({"c1": session}, clusters={"c1": ClusterProfile(host="h")})
+
+    class FakeTransportPlugin(Plugin):
+        name = "fake-transport"
+        provides = transport_contract.SERVICE_KEY
+        contract_version = transport_contract.CONTRACT_VERSION
+
+        def apply(self, ctx: Context) -> _FakeTransport:
+            return fake_transport
+
+    db_path = str(tmp_path / "sim.db")
+    config = {"storage-sqlite": {"path": db_path}, "solver-ingest": {"poll_interval_s": 0.05}}
+
+    # A manual run registered before the restart, plus one on an unknown cluster.
+    kernel = Kernel(config)
+    await kernel.add(SqliteStoragePlugin, SqliteTimeSeriesPlugin)
+    storage: Storage = kernel.services.require(storage_contract.SERVICE_KEY)
+    resumed = await storage.create_run(cluster_id="c1", work_dir="/case")
+    orphan = await storage.create_run(cluster_id="gone", work_dir="/case")
+    await kernel.stop()
+
+    kernel = Kernel(config)
+    try:
+        await kernel.add(
+            SqliteStoragePlugin,
+            SqliteTimeSeriesPlugin,
+            ConvergeSolverPlugin,
+            FakeTransportPlugin,
+            SolverIngestPlugin,
+        )
+        storage = kernel.services.require(storage_contract.SERVICE_KEY)
+        ts: TimeSeriesStore = kernel.services.require(ts_contract.SERVICE_KEY)
+        ingestor: IngestService = kernel.services.require(ingest_contract.SERVICE_KEY)
+
+        async def done(run_id: int) -> bool:
+            state = await ts.get_run_solver_state(run_id)
+            return state is not None and state.solver_state is SolverState.COMPLETED
+
+        await _wait_until(lambda: done(resumed.id))  # resumed by the poll loop
+        assert await ts.get_run_solver_state(orphan.id) is None
+
+        fresh = await storage.create_run(cluster_id="c1", work_dir="/case")
+        await ingestor.track_run("c1", fresh.id, "/case", solver_kind="converge")
+        await _wait_until(lambda: done(fresh.id))
+        assert [r.id for r in await storage.runs(cluster_id="c1")] == [fresh.id, resumed.id]
+    finally:
+        await kernel.stop()

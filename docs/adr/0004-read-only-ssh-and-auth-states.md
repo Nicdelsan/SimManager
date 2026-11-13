@@ -30,7 +30,8 @@ short-lived SSH certificates issued through a browser login).
 4. **Humans answer through a service.** Passwords, passphrases, keyboard-interactive
    (OTP) prompts and yes/no questions go to `auth.prompter` (terminal now, web UI in M3).
    With no interactive prompter the answer is "no", never a hang. Answers live in memory
-   only.
+   only and are dropped after the attempt (since M3 a key passphrase is asked again at
+   reconnection instead of being cached).
 5. **Short-lived certificates** (`<key>-cert.pub`) are checked before connecting; when
    expired the user is asked to run the profile's `cert_renew_command` locally.
 6. **Host keys are always verified** against known_hosts; there is no "accept new key"

@@ -48,7 +48,7 @@ M1 (2026-11-13):
   short-lived SSH certificates (expiry checked, renew command after confirmation);
   states CONNECTED/BACKOFF/AWAITING_AUTH/FAILED with no blind auth retries; read-only
   allowlist; `run_mutating` logged; SFTP `stat/listdir/read_range` (for M2).
-- `prompter-cli`: terminal prompts.
+- `prompter-cli`: terminal prompts (`prompter-web` in the browser under `serve`, M3).
 - `scheduler-slurm`: squeue/sacct/scontrol parsers, accounting auto-detection.
 - `monitor`: per-cluster adaptive polling, jobs + runs + events, degraded/recovered.
 - Storage migration 0002: `jobs`, `runs`.
@@ -73,13 +73,26 @@ M2 (2026-11-13, merged into `main`):
 - `solver-converge`, `solver-openfoam`: discovery + pure parsers (OpenFOAM
   `postProcessing/**` deferred until a sample exists).
 - `contracts/ingest.py` (`ingest` v1) and `solver-ingest`: solver detection, sync, background
-  backfill, M1 integration via `monitor.polled`, durable events `series.updated`,
-  `run.progress`.
+  backfill, M1 integration via `monitor.polled`.
 - CLI: `simman ingest local|status|series`.
+
+M3 (in progress):
+- Durable log holds facts only (`ingest.DURABLE_EVENT_KINDS`, incl. new
+  `run.solver_state_changed`); `series.updated`, `run.progress`, `backfill.progress` are
+  bus-only; `storage.event_appended` streams the durable log live.
+- Progress stored as series `ingest.PROGRESS_SERIES` (wall time → fraction).
+- Manual runs: `ingest.track_run`, resumed at start until the solver is done.
+- `ui-web`: secure local server (ADR 0005) + WebSocket hub; `simman serve` prints the
+  login URL and opens the browser. Page content: placeholder until step 7.
+- REST API under `/api` (see architecture.md, `ui-web` row); ETA = linear rate of the
+  progress series over the last hour of wall time.
+- Live WebSocket: subscribed plots get only new points, ≤ 1 update/s per run.
+- `prompter-web`: password/OTP/confirmations in the browser, 300 s timeout →
+  `AWAITING_AUTH`; `prompter: auto|cli|web`.
 
 ## Not yet implemented
 
-Web UI (M3), terminal, campaigns, snapshots, notifications. PBS is on standby (user decision 2026-11-13). Passphrase-protected keys in
+Web UI pages and API (M3 steps 4–7), terminal, campaigns, snapshots, notifications. PBS is on standby (user decision 2026-11-13). Passphrase-protected keys in
 the new OpenSSH format would need `bcrypt`: not added, the user has no passphrases.
 
 ## Known limitations
@@ -95,6 +108,25 @@ the new OpenSSH format would need `bcrypt`: not added, the user has no passphras
 
 ## Changelog
 
+- 2026-11-13 — M3 step 6: `prompter-web` + core key `prompter: auto|cli|web`; OTP login
+  end-to-end through the browser tested against the in-process SSH server (OTP absent
+  from logs, events and the DB file); key passphrases no longer cached by the transport;
+  `uvicorn.error` pinned at ≥ INFO (its DEBUG logs every WebSocket frame).
+- 2026-11-13 — M3 step 5: live WebSocket traffic (durable events, cluster state, polls,
+  progress, throttled backfill progress, per-run throttled plot points with reload on
+  big jumps); `ui-web.live_interval_s` (default 1 s).
+- 2026-11-13 — M3 step 4: REST API (clusters with last state/poll, jobs, runs with job,
+  solver state and ETA, run detail with files/backfill and series, downsampled points,
+  events, reconnect, manual run registration); ETA from the progress series.
+- 2026-11-13 — M3 step 3: plugin `ui-web` (uvicorn in the kernel loop, 127.0.0.1 only,
+  token → `HttpOnly; SameSite=Strict` cookie, Host/Origin/JSON checks, CSP headers,
+  WebSocket hub), ADR 0005. `simman serve` prints the login URL, opens the browser
+  (`--no-browser`, `--port`), stops cleanly on Ctrl+C (tested on Windows).
+- 2026-11-13 — M3 step 2: storage implements `runs`, `job_for_run` and publishes
+  `storage.event_appended`; solver-ingest writes only facts to the durable log
+  (`run.solver_state_changed` new), stores progress as a series, tracks manual runs
+  (`track_run`, resumed at start until the solver is done). Fixed race: solver state is
+  now written after the progress series.
 - 2026-11-13 — M3 step 1: contracts (`storage.runs/job_for_run/EVENT_APPENDED`,
   `ingest.track_run/PROGRESS_SERIES/DURABLE_EVENT_KINDS`, new `ui.web`) and dependencies
   `fastapi`, `uvicorn`, `websockets` (dev: `httpx`). Implementations follow.

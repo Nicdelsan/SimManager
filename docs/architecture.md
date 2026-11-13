@@ -91,15 +91,24 @@ SQLite in WAL mode via `aiosqlite`, hand-written SQL, numbered migrations in
 | Plugin | Provides | Injects | Notes |
 |---|---|---|---|
 | `prompter-cli` | `auth.prompter` | — | getpass/input; answers None when stdin is not a TTY. |
+| `prompter-web` (M3) | `auth.prompter` | `ui.web` | Prompts over the dashboard WebSocket (`auth.prompt`, `auth.confirm`, `auth.closed`; answers `auth.answer`, `auth.confirm_answer`, `auth.cancel`). First answer wins; late browsers get pending prompts; timeout `prompt_timeout_s` (300 s) → no answer → `AWAITING_AUTH`. Exactly one prompter runs: core key `prompter: auto\|cli\|web` (auto = web under `serve`, cli otherwise), applied by `app.prepare(web=...)`. |
 | `transport-ssh` | `transport` | `storage` | asyncssh, one lazy connection per cluster, read-only policy and auth states ([ADR 0004](adr/0004-read-only-ssh-and-auth-states.md)). Reads `clusters.yaml`. |
 | `scheduler-slurm` | `scheduler.slurm` | — | Pure parsers in `parse.py`; `sacct`, falling back to `scontrol` when accounting is disabled (remembered per cluster). |
 | `monitor` | `monitor` | `storage`, `transport` | One poll loop per cluster (adaptive 60/180/300 s ±10 %); scheduler looked up as `scheduler.<profile.scheduler>`. `loop: false` = on demand only (CLI). |
+| `ui-web` (M3) | `ui.web` | — | FastAPI + uvicorn in the kernel loop on 127.0.0.1 only; token → cookie, Host/Origin checks, CSP ([ADR 0005](adr/0005-local-web-server-security.md)). Started only by `simman serve` (`WEB_ONLY_PLUGINS`). Dashboard WebSocket hub with per-client bounded queues. REST API (`api.py`, JSON under `/api`): `GET clusters, jobs, runs, runs/{id}, runs/{id}/series, series/{id}/points?x_min&x_max&width, events`; `POST clusters/{id}/reconnect`, `POST runs` (manual run → `storage.create_run` + durable `run.created` + `ingest.track_run`). Services looked up per request (503 when missing). ETA and file read fraction in `derive.py`. WebSocket `/ws` server→browser: `hello`, `cluster.state`, `monitor.polled`, `event` (every durable event), `run.progress`, `backfill.progress` (≤ 1/s per file), `series.updated`, `points` (new points of subscribed series, ≤ 1 flush per `live_interval_s` per run), `series.reload` (> 5000 new points), `error`; browser→server: `subscribe {run_id, series:[{id,last_x}]}`, `unsubscribe` (`live.py`). |
 
 Durable events written in M1: `cluster.connected`, `cluster.connection_lost`,
 `cluster.unreachable`, `cluster.auth_required`, `cluster.failed`,
 `cluster.cert_renew_started|finished|failed`, `cluster.degraded`, `cluster.recovered`,
 `job.discovered`, `run.created`, `job.state_changed`, `action.executed`, `action.result`.
-Bus-only events: `transport.state`, `monitor.polled`.
+Durable events written by `solver-ingest` (M2/M3, `ingest.DURABLE_EVENT_KINDS`, facts only):
+`run.solver_state_changed`, `solver.finished`, `solver.error`, `solver.nan_detected`,
+`file.truncated`.
+Bus-only events: `transport.state`, `monitor.polled`, `series.updated`, `run.progress`,
+`backfill.progress`, `storage.event_appended` (each durable event right after commit, so
+the UI can stream the log live).
+Progress is stored as a timeseries (`ingest.PROGRESS_SERIES`: x = wall time, y = 0..1);
+the solver state row is written last in a sync and acts as its commit marker.
 
 ## Milestones
 
