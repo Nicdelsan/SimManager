@@ -1,0 +1,33 @@
+# --- Private / local data: NEVER commit -------------------------------------
+# Raw samples contain real usernames, paths, accounts, IPs and other users' jobs.
+# Tests use anonymized, truncated extracts in tests/fixtures/ instead.
+samples/
+Claude outputs/
+simmanager.yaml
+clusters.yaml
+*.db
+*.db-wal
+*.db-shm
+*.log
+*.h5
+*.rst
+.env
+
+# --- Python -----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- Editors / OS -----------------------------------------------------------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
