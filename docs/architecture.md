@@ -69,6 +69,9 @@ Consumers import only these modules, never plugin implementations. Each has a
 | `ingest.py` | `ingest` | M2 | `IngestService.sync_run` (`SyncRunResult`): orchestrates solver detection, incremental reading, backfill and event emission. Since M3: `track_run` (manual runs), `PROGRESS_SERIES` (progress vs wall time in the timeseries store), `DURABLE_EVENT_KINDS` (only facts go to the durable log; `series.updated`, `run.progress`, `backfill.progress` are bus-only). |
 | `ui.py` | `ui.web` | M3 | Local web UI as seen by plugins: `base_url`, `client_count`, `broadcast`, `on_message`, `on_client_connected` (shared dashboard WebSocket; per-session channels such as the M4 terminal will be an additive extension). |
 | `campaign.py` | `campaign`, `campaign.manager` | M5 | `CampaignStore` (projects, campaigns, cases, run links, exclusions, ambiguities) and `CampaignService` (Excel preview/import/export, run matching, computed states, durable events). |
+| `snapshot.py` | `snapshot`, `snapshot.manager` | M6 | `SnapshotStore` (content-addressed SQLite blobs, manifests, run notes) and `SnapshotService` (input capture, oversize background hashing, textual & semantic diffs). |
+| `rules.py` | `rules`, `rules.manager` | M6 | `RuleStore` (layered rule configs, open/cleared alerts, incremental run state) and `RuleEngine` (hysteresis evaluation, adaptive stall, acknowledgment). |
+| `notifier.py` | `notifier.router`, `notifier.<kind>` | M6 | `NotifierProvider` (`notifier.desktop`, …) and `NotificationService` (routing, immediate-first batching, quiet hours, rate limit). |
 
 ## Storage (`plugins/storage_sqlite`)
 
@@ -85,6 +88,7 @@ SQLite in WAL mode via `aiosqlite`, hand-written SQL, numbered migrations in
 | `sample_chunks` | M2 | Dense float64 `array('d')` chunks (`level=0`) and 16:1 / 256:1 min/max pyramids (`level=1, 2`). |
 | `run_solver_state` | M2 | Latest solver state, progress, times, `ncyc`, warnings and case/output dirs per `run_id` (`REFERENCES runs(id) ON DELETE CASCADE`). |
 | `projects`, `campaigns`, `cases`, `case_runs`, `case_run_exclusions`, `case_match_ambiguities` | M5 | Project → Campaign (`work_root`, `naming_regex`) → Case (`parent_case_id`, `manual_state`, `computed_state`, `params_json`) → Run links (manual lock, exclusions, unresolved ambiguities). |
+| `snapshot_blobs`, `snapshots`, `snapshot_files`, `run_notes`, `rule_configs`, `alerts`, `rule_run_state` | M6 | Content-addressed input snapshots (ADR 0006), mutable run notes, layered detection rules, deduplicated alerts, and incremental evaluation/stall state. |
 
 ## M1 plugins
 

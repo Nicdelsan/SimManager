@@ -103,6 +103,10 @@ M3 (2026-11-13):
 Terminal (M4), snapshots, notifications. PBS is on standby (user decision 2026-11-13). Passphrase-protected keys in
 the new OpenSSH format would need `bcrypt`: not added, the user has no passphrases.
 
+## M6 (branch m6-snapshots)
+
+- 2026-11-13 — Step 1: added `desktop-notifier>=6.0`, ADR 0006 (SQLite content-addressed snapshots), migration `0005_snapshots_rules.sql`, and contracts `contracts/snapshot.py`, `contracts/rules.py`, `contracts/notifier.py`.
+
 ## Known limitations
 
 - On clusters without accounting (`uni-a`, `uni-b`) a job that starts and ends between
