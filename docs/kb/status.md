@@ -65,6 +65,8 @@ M3 (in progress):
 - Manual runs: `ingest.track_run`, resumed at start until the solver is done.
 - `ui-web`: secure local server (ADR 0005) + WebSocket hub; `simman serve` prints the
   login URL and opens the browser. Page content: placeholder until step 7.
+- REST API under `/api` (see architecture.md, `ui-web` row); ETA = linear rate of the
+  progress series over the last hour of wall time.
 
 ## Not yet implemented
 
@@ -84,6 +86,9 @@ the new OpenSSH format would need `bcrypt`: not added, the user has no passphras
 
 ## Changelog
 
+- 2026-11-13 — M3 step 4: REST API (clusters with last state/poll, jobs, runs with job,
+  solver state and ETA, run detail with files/backfill and series, downsampled points,
+  events, reconnect, manual run registration); ETA from the progress series.
 - 2026-11-13 — M3 step 3: plugin `ui-web` (uvicorn in the kernel loop, 127.0.0.1 only,
   token → `HttpOnly; SameSite=Strict` cookie, Host/Origin/JSON checks, CSP headers,
   WebSocket hub), ADR 0005. `simman serve` prints the login URL, opens the browser

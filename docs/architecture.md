@@ -92,7 +92,7 @@ SQLite in WAL mode via `aiosqlite`, hand-written SQL, numbered migrations in
 | `transport-ssh` | `transport` | `storage` | asyncssh, one lazy connection per cluster, read-only policy and auth states ([ADR 0004](adr/0004-read-only-ssh-and-auth-states.md)). Reads `clusters.yaml`. |
 | `scheduler-slurm` | `scheduler.slurm` | — | Pure parsers in `parse.py`; `sacct`, falling back to `scontrol` when accounting is disabled (remembered per cluster). |
 | `monitor` | `monitor` | `storage`, `transport` | One poll loop per cluster (adaptive 60/180/300 s ±10 %); scheduler looked up as `scheduler.<profile.scheduler>`. `loop: false` = on demand only (CLI). |
-| `ui-web` (M3) | `ui.web` | — | FastAPI + uvicorn in the kernel loop on 127.0.0.1 only; token → cookie, Host/Origin checks, CSP ([ADR 0005](adr/0005-local-web-server-security.md)). Started only by `simman serve` (`WEB_ONLY_PLUGINS`). Dashboard WebSocket hub with per-client bounded queues. |
+| `ui-web` (M3) | `ui.web` | — | FastAPI + uvicorn in the kernel loop on 127.0.0.1 only; token → cookie, Host/Origin checks, CSP ([ADR 0005](adr/0005-local-web-server-security.md)). Started only by `simman serve` (`WEB_ONLY_PLUGINS`). Dashboard WebSocket hub with per-client bounded queues. REST API (`api.py`, JSON under `/api`): `GET clusters, jobs, runs, runs/{id}, runs/{id}/series, series/{id}/points?x_min&x_max&width, events`; `POST clusters/{id}/reconnect`, `POST runs` (manual run → `storage.create_run` + durable `run.created` + `ingest.track_run`). Services looked up per request (503 when missing). ETA and file read fraction in `derive.py`. |
 
 Durable events written in M1: `cluster.connected`, `cluster.connection_lost`,
 `cluster.unreachable`, `cluster.auth_required`, `cluster.failed`,

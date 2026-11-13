@@ -5,11 +5,17 @@ Only `simman serve` enables it (see `WEB_ONLY_PLUGINS`). Security: `security.py`
 
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field
 
+from simmanager.contracts import monitor as monitor_contract
+from simmanager.contracts import transport as transport_contract
 from simmanager.contracts import ui as contract
+from simmanager.contracts.monitor import PollReport
 from simmanager.kernel import Context, Plugin
 
+from .api import Api, ClusterStatusCache, build_router
 from .app import create_app
 from .hub import Hub
 from .security import SecurityPolicy, new_token
@@ -38,8 +44,20 @@ class UiWebPlugin(Plugin):
         policy = SecurityPolicy(token=new_token(), port=sock.getsockname()[1])
         hub = Hub(ctx.log)
         server = UiWebServer(hub, policy)
+        status = ClusterStatusCache()
+        api = Api(ctx.services, status)
+        ctx.add_disposer(api.close, "cancel API background tasks")
+
+        async def on_transport_state(payload: dict[str, Any]) -> None:
+            await hub.broadcast(status.on_transport_state(payload))
+
+        async def on_polled(report: PollReport) -> None:
+            await hub.broadcast(status.on_polled(report))
+
+        ctx.on(transport_contract.STATE_EVENT, on_transport_state)
+        ctx.on(monitor_contract.POLLED_EVENT, on_polled)
         try:
-            task = await server.start(create_app(policy, hub), sock)
+            task = await server.start(create_app(policy, hub, [build_router(api)]), sock)
         except BaseException:
             sock.close()
             raise
