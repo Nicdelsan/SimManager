@@ -9,6 +9,12 @@ _Last updated: 2026-11-13_
 another agent on branch `m5-campaigns` and owns migration `0004`; M3 uses `0005` if it
 needs one.
 
+### M5 (branch m5-campaigns)
+
+- Plan approved 2026-11-13; `openpyxl` added, migration `0004_campaigns.sql` and
+  `contracts/campaign.py` (`campaign` v1, `campaign.manager` v1) added. Next: SQLite
+  `CampaignStore`, `campaign-excel` plugin, and `simman campaign` CLI.
+
 - M1 — SSH and SLURM discovery: done 2026-11-13. All three clusters pass
   `simman cluster test`; real job lines still to be seen (A2, A7).
 - M2 — incremental readers and parsers: done and merged into `main` on 2026-11-13

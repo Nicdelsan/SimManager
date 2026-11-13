@@ -9,6 +9,7 @@ dependencies = [
     "aiosqlite>=0.20",
     "asyncssh>=2.24.1",
     "fastapi>=0.162.6",
+    "openpyxl>=3.1.5",
     "pydantic>=2.7",
     "pyyaml>=6.0",
     "typer>=0.12",
