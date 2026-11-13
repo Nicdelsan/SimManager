@@ -47,4 +47,8 @@ export const api = {
   createRun: (body) => request("POST", "/runs", body),
   points: (seriesId, params) => request("GET", `/series/${seriesId}/points${query(params)}`),
   events: (params) => request("GET", `/events${query(params)}`),
+  campaigns: () => request("GET", "/campaigns"),
+  campaign: (id) => request("GET", `/campaigns/${id}`),
+  matchRun: (id, body) => request("POST", `/campaigns/${id}/match`, body),
+  unmatchRun: (id, runId) => request("POST", `/campaigns/${id}/unmatch`, { run_id: runId }),
 };

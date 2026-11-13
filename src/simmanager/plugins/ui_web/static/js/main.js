@@ -9,6 +9,7 @@ import { runView } from "./views/run.js";
 import { compareView } from "./views/compare.js";
 import { clustersView } from "./views/clusters.js";
 import { newRunView } from "./views/newrun.js";
+import { campaignsView, campaignView } from "./views/campaigns.js";
 
 const routes = [
   [/^#?\/?$/, "dashboard", () => dashboardView],
@@ -17,6 +18,8 @@ const routes = [
   [/^#\/runs\/(\d+)$/, "runs", () => runView],
   [/^#\/compare$/, "runs", () => compareView],
   [/^#\/clusters$/, "clusters", () => clustersView],
+  [/^#\/campaigns$/, "campaigns", () => campaignsView],
+  [/^#\/campaigns\/(\d+)$/, "campaigns", () => campaignView],
 ];
 
 let teardown = null;

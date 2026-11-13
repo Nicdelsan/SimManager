@@ -22,6 +22,7 @@ from simmanager.kernel import Context, Plugin
 
 from .api import Api, ClusterStatusCache, build_router, event_json
 from .app import create_app
+from .campaigns import build_campaign_router
 from .hub import Hub
 from .live import Live, RateLimit
 from .prompter import WebPrompter
@@ -93,7 +94,9 @@ class UiWebPlugin(Plugin):
         ctx.on("backfill.progress", on_backfill)
         ctx.on("series.updated", on_series_updated)
         try:
-            task = await server.start(create_app(policy, hub, [build_router(api)]), sock)
+            task = await server.start(
+                create_app(policy, hub, [build_router(api), build_campaign_router(api)]), sock
+            )
         except BaseException:
             sock.close()
             raise

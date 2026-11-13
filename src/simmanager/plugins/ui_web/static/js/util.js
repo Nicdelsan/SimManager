@@ -8,6 +8,7 @@ export function h(tag, attrs = {}, ...children) {
     if (key === "class") el.className = value;
     else if (key.startsWith("on") && typeof value === "function") el.addEventListener(key.slice(2), value);
     else if (key === "dataset") Object.assign(el.dataset, value);
+    else if (key === "list") el.setAttribute("list", value); // read-only property on inputs
     else if (key in el && typeof value !== "string") el[key] = value;
     else el.setAttribute(key, value === true ? "" : String(value));
   }

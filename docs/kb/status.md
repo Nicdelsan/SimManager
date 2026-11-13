@@ -5,7 +5,7 @@ _Last updated: 2026-11-13_
 ## Current milestone
 
 **M3 — web UI**: in progress on `main` (plan approved 2026-11-13, see
-[roadmap.md#m3](roadmap.md#m3--web-ui)); steps 1–7 done, campaign view and final docs
+[roadmap.md#m3](roadmap.md#m3--web-ui)); steps 1–7 and campaign view done; final docs
 pending.
 
 - M5 — Excel campaigns: backend done on branch `m5-campaigns` (other agent) and merged
@@ -88,6 +88,8 @@ M3 (in progress):
   (series by file, one plot per unit/x axis, log y for residuals, drag-zoom reloads at
   higher resolution, progress plot, ETA, backfill status, live points), clusters page
   with Reconnect, password/OTP dialog, manual run registration.
+- Campaigns page: case table (computed vs manual state, parameters, linked runs),
+  never-launched cases, runs not associated, manual association/removal.
 - REST API under `/api` (see architecture.md, `ui-web` row); ETA = linear rate of the
   progress series over the last hour of wall time.
 - Live WebSocket: subscribed plots get only new points, ≤ 1 update/s per run.
@@ -96,7 +98,7 @@ M3 (in progress):
 
 ## Not yet implemented
 
-Terminal (M4), campaign view in the web UI (M3, in progress), snapshots, notifications. PBS is on standby (user decision 2026-11-13). Passphrase-protected keys in
+Terminal (M4), snapshots, notifications. PBS is on standby (user decision 2026-11-13). Passphrase-protected keys in
 the new OpenSSH format would need `bcrypt`: not added, the user has no passphrases.
 
 ## Known limitations
@@ -112,6 +114,9 @@ the new OpenSSH format would need `bcrypt`: not added, the user has no passphras
 
 ## Changelog
 
+- 2026-11-13 — M3: campaign view in the web UI (case table with computed and manual
+  state, filters, linked runs with unmatch, never-launched cases, runs not associated
+  with manual association) on `campaign.manager`.
 - 2026-11-13 — Merged `m5-campaigns` (campaign backend, migration `0004`, `simman campaign`)
   into `main`; no conflicts; status sections unified.
 - 2026-11-13 — M3 step 7: web frontend (dashboard, runs, run detail with plots per unit,
