@@ -64,7 +64,11 @@ M3 (in progress):
 - Progress stored as series `ingest.PROGRESS_SERIES` (wall time → fraction).
 - Manual runs: `ingest.track_run`, resumed at start until the solver is done.
 - `ui-web`: secure local server (ADR 0005) + WebSocket hub; `simman serve` prints the
-  login URL and opens the browser. Page content: placeholder until step 7.
+  login URL and opens the browser.
+- Frontend: dashboard (clusters, active runs, events), runs list + compare, run detail
+  (series by file, one plot per unit/x axis, log y for residuals, drag-zoom reloads at
+  higher resolution, progress plot, ETA, backfill status, live points), clusters page
+  with Reconnect, password/OTP dialog, manual run registration.
 - REST API under `/api` (see architecture.md, `ui-web` row); ETA = linear rate of the
   progress series over the last hour of wall time.
 - Live WebSocket: subscribed plots get only new points, ≤ 1 update/s per run.
@@ -73,7 +77,7 @@ M3 (in progress):
 
 ## Not yet implemented
 
-Web UI pages and API (M3 steps 4–7), terminal, campaigns, snapshots, notifications. PBS is on standby (user decision 2026-11-13). Passphrase-protected keys in
+Terminal, campaigns, snapshots, notifications. PBS is on standby (user decision 2026-11-13). Passphrase-protected keys in
 the new OpenSSH format would need `bcrypt`: not added, the user has no passphrases.
 
 ## Known limitations
@@ -89,6 +93,10 @@ the new OpenSSH format would need `bcrypt`: not added, the user has no passphras
 
 ## Changelog
 
+- 2026-11-13 — M3 step 7: web frontend (dashboard, runs, run detail with plots per unit,
+  progress plot + ETA, zoom → higher resolution, live points, backfill indicator,
+  compare, clusters + reconnect, auth dialog, manual run registration); uPlot 1.6.31
+  vendored. Checked in headless Chrome on fixture data.
 - 2026-11-13 — M3 step 6: `prompter-web` + core key `prompter: auto|cli|web`; OTP login
   end-to-end through the browser tested against the in-process SSH server (OTP absent
   from logs, events and the DB file); key passphrases no longer cached by the transport;

@@ -130,6 +130,7 @@ def solver_json(state: RunSolverState | None) -> dict[str, Any] | None:
 def series_json(s: SeriesMeta) -> dict[str, Any]:
     return {
         "id": s.id,
+        "run_id": s.run_id,
         "file_path": s.file_path,
         "name": s.name,
         "qualifier": s.qualifier,

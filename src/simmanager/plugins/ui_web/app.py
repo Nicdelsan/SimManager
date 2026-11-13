@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import mimetypes
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -14,6 +15,11 @@ from .hub import Hub
 from .security import SecurityMiddleware, SecurityPolicy
 
 STATIC_DIR = Path(__file__).parent / "static"
+
+# The Windows registry may map .js to text/plain; with `nosniff` the browser would then
+# refuse to run the ES modules. Register the right types explicitly.
+mimetypes.add_type("text/javascript", ".js")
+mimetypes.add_type("text/css", ".css")
 
 
 def create_app(policy: SecurityPolicy, hub: Hub, routers: Iterable[APIRouter] = ()) -> ASGIApp:

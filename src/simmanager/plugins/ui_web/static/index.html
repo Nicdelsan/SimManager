@@ -4,9 +4,32 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SimManager</title>
+<link rel="stylesheet" href="/static/vendor/uplot-1.6.31/uPlot.min.css">
+<link rel="stylesheet" href="/static/css/app.css">
+<script type="module" src="/static/js/main.js"></script>
 </head>
 <body>
-<h1>SimManager</h1>
-<p>Web UI under construction (M3).</p>
+<header class="topbar">
+  <a class="brand" href="#/">SimManager</a>
+  <nav>
+    <a href="#/" data-nav="dashboard">Dashboard</a>
+    <a href="#/runs" data-nav="runs">Runs</a>
+    <a href="#/clusters" data-nav="clusters">Clusters</a>
+  </nav>
+  <span id="status" class="status"></span>
+</header>
+<main id="view"><p class="muted">Loading…</p></main>
+
+<dialog id="auth-dialog">
+  <form id="auth-form" method="dialog">
+    <h2 id="auth-title"></h2>
+    <p id="auth-instructions" class="muted"></p>
+    <div id="auth-fields"></div>
+    <div class="actions">
+      <button type="button" id="auth-cancel">Cancel</button>
+      <button type="submit" id="auth-ok" class="primary">OK</button>
+    </div>
+  </form>
+</dialog>
 </body>
 </html>
