@@ -97,7 +97,14 @@ Durable events written in M1: `cluster.connected`, `cluster.connection_lost`,
 `cluster.unreachable`, `cluster.auth_required`, `cluster.failed`,
 `cluster.cert_renew_started|finished|failed`, `cluster.degraded`, `cluster.recovered`,
 `job.discovered`, `run.created`, `job.state_changed`, `action.executed`, `action.result`.
-Bus-only events: `transport.state`, `monitor.polled`.
+Durable events written by `solver-ingest` (M2/M3, `ingest.DURABLE_EVENT_KINDS`, facts only):
+`run.solver_state_changed`, `solver.finished`, `solver.error`, `solver.nan_detected`,
+`file.truncated`.
+Bus-only events: `transport.state`, `monitor.polled`, `series.updated`, `run.progress`,
+`backfill.progress`, `storage.event_appended` (each durable event right after commit, so
+the UI can stream the log live).
+Progress is stored as a timeseries (`ingest.PROGRESS_SERIES`: x = wall time, y = 0..1);
+the solver state row is written last in a sync and acts as its commit marker.
 
 ## Milestones
 

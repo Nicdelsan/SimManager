@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import posixpath
+import time
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, ClassVar
@@ -45,6 +46,8 @@ class _TrackedRun:
     stdout_path: str | None = None
     terminal: bool = False
     last_job_state: str = ""
+    manual: bool = False
+    """No scheduler job: tracked until the solver state is terminal."""
 
 
 class SolverIngestor:
@@ -167,28 +170,52 @@ class SolverIngestor:
                             )
 
             merged = _merge_run_state(run_id, solver.kind, work_dir, existing, updates)
+            progress_changed = merged.progress is not None and (
+                existing is None or merged.progress != existing.progress
+            )
+            if progress_changed:
+                assert merged.progress is not None
+                await self._ts.append_samples(
+                    run_id, {contract.PROGRESS_SERIES: ([time.time()], [merged.progress])}
+                )
+            # Solver state last: it marks the sync as committed for readers.
             await self._ts.upsert_run_solver_state(merged)
+
+            previous_state = existing.solver_state if existing else SolverState.UNKNOWN
+            if merged.solver_state is not previous_state:
+                emitted_events.append(
+                    (
+                        "run.solver_state_changed",
+                        {
+                            "solver": solver.kind,
+                            "from": str(previous_state),
+                            "to": str(merged.solver_state),
+                            "error_message": merged.error_message,
+                        },
+                    )
+                )
 
             for kind, payload in emitted_events:
                 await self._record_event(
                     kind, payload, cluster_id=session.cluster_id, run_id=run_id
                 )
 
-            if points_ingested > 0:
+            if points_ingested > 0 or progress_changed:
+                files = [w.file_path for w in watched]
+                if progress_changed:
+                    files.append(contract.PROGRESS_SERIES.file_path)
                 await self._record_event(
                     "series.updated",
                     {
                         "solver": solver.kind,
                         "points_ingested": points_ingested,
-                        "files": [w.file_path for w in watched],
+                        "files": files,
                     },
                     cluster_id=session.cluster_id,
                     run_id=run_id,
                 )
 
-            if merged.progress is not None and (
-                existing is None or merged.progress != existing.progress
-            ):
+            if progress_changed:
                 await self._record_event(
                     "run.progress",
                     {
@@ -297,7 +324,8 @@ class SolverIngestor:
         cluster_id: str | None,
         run_id: int | None,
     ) -> None:
-        if kind != "backfill.progress":
+        # Only facts go to the durable log; data/progress notifications are bus-only.
+        if kind in contract.DURABLE_EVENT_KINDS:
             await self._storage.append_event(
                 kind, payload, source=self._ctx.plugin_name, cluster_id=cluster_id, run_id=run_id
             )
@@ -327,6 +355,45 @@ class SolverIngestor:
         records = await self._storage.jobs(active=True, limit=500)
         for rec in records:
             await self._reconcile_job(rec, spawn=False)
+        await self._bootstrap_manual_runs()
+
+    async def _bootstrap_manual_runs(self) -> None:
+        transport: Transport | None = self._ctx.services.get(transport_contract.SERVICE_KEY)
+        clusters = set(transport.clusters()) if transport is not None else set()
+        for run in await self._storage.runs(limit=1000):
+            if run.origin != "manual" or run.cluster_id not in clusters or not run.work_dir:
+                continue
+            state = await self._ts.get_run_solver_state(run.id)
+            if state is not None and _solver_done(state.solver_state):
+                continue
+            self._tracked.setdefault(
+                run.id,
+                _TrackedRun(
+                    run_id=run.id,
+                    cluster_id=run.cluster_id,
+                    work_dir=run.work_dir,
+                    solver_kind=state.solver if state else None,
+                    manual=True,
+                ),
+            )
+
+    async def track_run(
+        self,
+        cluster_id: str,
+        run_id: int,
+        work_dir: str,
+        *,
+        solver_kind: str | None = None,
+    ) -> None:
+        tracked = _TrackedRun(
+            run_id=run_id,
+            cluster_id=cluster_id,
+            work_dir=work_dir,
+            solver_kind=solver_kind,
+            manual=True,
+        )
+        self._tracked[run_id] = tracked
+        self._spawn_sync(tracked)
 
     async def _reconcile_job(self, rec: JobRecord, *, spawn: bool) -> None:
         if rec.run_id is None or not rec.info.work_dir:
@@ -401,14 +468,16 @@ class SolverIngestor:
         if transport is None:
             return
         session = await transport.session(tracked.cluster_id)
-        await self.sync_run(
+        result = await self.sync_run(
             session,
             tracked.run_id,
             tracked.work_dir,
             solver_kind=tracked.solver_kind,
             stdout_path=tracked.stdout_path,
         )
-        if tracked.terminal:
+        if result.solver is not None:
+            tracked.solver_kind = result.solver
+        if tracked.terminal or (tracked.manual and _solver_done(result.solver_state)):
             self._terminal_synced.add(tracked.run_id)
             self._tracked.pop(tracked.run_id, None)
 
@@ -428,6 +497,10 @@ class SolverIngestor:
                         self._ctx.log.exception("poll failed for run %s", tracked.run_id)
         except asyncio.CancelledError:
             return
+
+
+def _solver_done(state: SolverState) -> bool:
+    return state in (SolverState.COMPLETED, SolverState.STOPPED, SolverState.FAILED)
 
 
 def _merge_run_state(

@@ -76,6 +76,11 @@ the new OpenSSH format would need `bcrypt`: not added, the user has no passphras
 
 ## Changelog
 
+- 2026-11-13 — M3 step 2: storage implements `runs`, `job_for_run` and publishes
+  `storage.event_appended`; solver-ingest writes only facts to the durable log
+  (`run.solver_state_changed` new), stores progress as a series, tracks manual runs
+  (`track_run`, resumed at start until the solver is done). Fixed race: solver state is
+  now written after the progress series.
 - 2026-11-13 — M3 step 1: contracts (`storage.runs/job_for_run/EVENT_APPENDED`,
   `ingest.track_run/PROGRESS_SERIES/DURABLE_EVENT_KINDS`, new `ui.web`) and dependencies
   `fastapi`, `uvicorn`, `websockets` (dev: `httpx`). Implementations follow.

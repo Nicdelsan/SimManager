@@ -124,3 +124,53 @@ async def test_upsert_job_creates_run_and_keeps_known_fields(db_path: str) -> No
     assert (await storage.run(manual.id)) == manual
     assert (await storage.run(99999)) is None
     await storage.close()
+
+
+async def test_runs_job_for_run_and_live_event_hook(db_path: str) -> None:
+    from simmanager.contracts.scheduler import JobInfo, JobState
+    from simmanager.contracts.storage import EventRecord
+
+    storage = await SqliteStorage.open(db_path)
+    seen: list[EventRecord] = []
+
+    async def hook(record: EventRecord) -> None:
+        seen.append(record)
+
+    storage.on_event_appended = hook
+    up = await storage.upsert_job(
+        "c",
+        JobInfo(job_id="1", name="n", state=JobState.RUNNING, raw_state="RUNNING"),
+        active=True,
+    )
+    manual = await storage.create_run(cluster_id="c", work_dir="/w")
+    assert [r.id for r in await storage.runs()] == [manual.id, up.record.run_id]
+    assert [r.origin for r in await storage.runs(cluster_id="c")] == ["manual", "discovered"]
+    assert await storage.runs(cluster_id="x") == []
+
+    job = await storage.job_for_run(up.record.run_id or 0)
+    assert job is not None and job.info.job_id == "1"
+    assert await storage.job_for_run(manual.id) is None
+
+    event_id = await storage.append_event("x.y", {"a": 1}, source="t", run_id=manual.id)
+    assert [(e.id, e.kind, e.payload, e.run_id) for e in seen] == [
+        (event_id, "x.y", {"a": 1}, manual.id)
+    ]
+    await storage.close()
+
+
+async def test_plugin_publishes_appended_events_on_the_bus(db_path: str) -> None:
+    from simmanager.contracts import storage as contract
+
+    kernel = Kernel({"storage-sqlite": {"path": db_path}})
+    received: list[object] = []
+
+    async def on_event(payload: object) -> None:
+        received.append(payload)
+
+    kernel.bus.on(contract.EVENT_APPENDED, on_event)
+    await kernel.add(SqliteStoragePlugin)
+    try:
+        await kernel.services.require("storage").append_event("k", source="t")
+        assert len(received) == 1 and getattr(received[0], "kind", None) == "k"
+    finally:
+        await kernel.stop()

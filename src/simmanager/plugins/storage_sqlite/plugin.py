@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -34,6 +34,8 @@ class SqliteStorage:
     def __init__(self, db: aiosqlite.Connection) -> None:
         self._db = db
         self._write_lock = asyncio.Lock()
+        self.on_event_appended: Callable[[EventRecord], Awaitable[None]] | None = None
+        """Set by the plugin to publish `storage.event_appended` on the bus."""
 
     @classmethod
     async def open(cls, path: str) -> SqliteStorage:
@@ -82,6 +84,17 @@ class SqliteStorage:
             )
             await self._db.commit()
         assert cur.lastrowid is not None
+        if self.on_event_appended is not None:
+            record = EventRecord(
+                id=cur.lastrowid,
+                ts=datetime.fromisoformat(ts),
+                kind=kind,
+                source=source,
+                cluster_id=cluster_id,
+                run_id=run_id,
+                payload=json.loads(body),
+            )
+            await self.on_event_appended(record)
         return cur.lastrowid
 
     async def events(
@@ -205,16 +218,23 @@ class SqliteStorage:
     async def run(self, run_id: int) -> RunRecord | None:
         async with self._db.execute("SELECT * FROM runs WHERE id = ?", (run_id,)) as cur:
             row = await cur.fetchone()
-        if row is None:
-            return None
-        return RunRecord(
-            id=row["id"],
-            job_pk=row["job_pk"],
-            origin=row["origin"],
-            cluster_id=row["cluster_id"],
-            work_dir=row["work_dir"],
-            created_at=datetime.fromisoformat(row["created_at"]),
-        )
+        return _run_record(row) if row is not None else None
+
+    async def runs(self, *, cluster_id: str | None = None, limit: int = 200) -> list[RunRecord]:
+        sql = "SELECT * FROM runs"
+        args: list[Any] = []
+        if cluster_id is not None:
+            sql += " WHERE cluster_id = ?"
+            args.append(cluster_id)
+        sql += " ORDER BY id DESC LIMIT ?"
+        args.append(limit)
+        async with self._db.execute(sql, args) as cur:
+            return [_run_record(row) async for row in cur]
+
+    async def job_for_run(self, run_id: int) -> JobRecord | None:
+        async with self._db.execute(_JOB_SELECT + " WHERE r.id = ?", (run_id,)) as cur:
+            row = await cur.fetchone()
+        return _job_record(row) if row is not None else None
 
     async def _job_row(self, cluster_id: str, job_id: str) -> aiosqlite.Row | None:
         async with self._db.execute(
@@ -285,6 +305,17 @@ def _job_record(row: aiosqlite.Row) -> JobRecord:
     )
 
 
+def _run_record(row: aiosqlite.Row) -> RunRecord:
+    return RunRecord(
+        id=row["id"],
+        job_pk=row["job_pk"],
+        origin=row["origin"],
+        cluster_id=row["cluster_id"],
+        work_dir=row["work_dir"],
+        created_at=datetime.fromisoformat(row["created_at"]),
+    )
+
+
 def _event(row: aiosqlite.Row) -> EventRecord:
     return EventRecord(
         id=row["id"],
@@ -308,6 +339,11 @@ class SqliteStoragePlugin(Plugin):
         assert isinstance(ctx.config, SqliteConfig)
         path = ctx.config.path or str(paths.default_database_file())
         storage = await SqliteStorage.open(path)
+
+        async def publish(record: EventRecord) -> None:
+            await ctx.emit(contract.EVENT_APPENDED, record)
+
+        storage.on_event_appended = publish
         # Closing the connection is the only teardown: data is never touched on unload.
         ctx.add_disposer(storage.close, "close database")
         ctx.log.info("database ready at %s", path)
