@@ -62,7 +62,13 @@ class ClusterProfile(BaseModel):
     work_roots: list[str] = Field(default_factory=list)
 
     max_channels: int = Field(default=6, ge=1, le=64)
-    """Concurrent SSH channels on the single connection (sshd MaxSessions is usually 10)."""
+    """Concurrent command channels of the monitor on the single connection. Together with
+    the SFTP channel and `max_terminals` it should stay within sshd `MaxSessions`
+    (usually 10)."""
+    max_terminals: int = Field(default=3, ge=0, le=16)
+    """Interactive terminals (M4) per cluster, on their own channels: never the monitor's."""
+    terminal_tmux: bool = False
+    """Open new terminals inside a new tmux session on the cluster (when tmux exists)."""
     keepalive_s: float = Field(default=30, gt=0)
     connect_timeout_s: float = Field(default=20, gt=0)
     compression: bool = True
@@ -76,6 +82,10 @@ class ClusterProfile(BaseModel):
             except (ZoneInfoNotFoundError, ValueError) as exc:
                 raise ValueError(f"unknown time zone {value!r}") from exc
         return value
+
+    def channel_budget(self) -> int:
+        """SSH channels this profile may open at once: commands + SFTP + terminals."""
+        return self.max_channels + 1 + self.max_terminals
 
     def tz(self) -> tzinfo | None:
         """Zone for naive cluster timestamps; None means this machine's local zone."""

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import shlex
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -45,6 +47,9 @@ class SshTestServer:
         self.otp: str | None = None
         self.commands: dict[str, tuple[str, str, int]] = {}
         self.executed: list[str] = []
+        self.pty_commands: list[str | None] = []
+        """Command of every PTY request (None: plain `shell` request)."""
+        self.shells: list[asyncssh.SSHServerProcess[str]] = []
         self.auth_attempts = 0
         self.connections = 0
         self.live: set[asyncssh.SSHServerConnection] = set()
@@ -66,6 +71,7 @@ class SshTestServer:
             process_factory=self._handle,
             sftp_factory=lambda chan: asyncssh.SFTPServer(chan, chroot=str(self.sftp_root)),
             reuse_address=True,
+            line_editor=False,  # the fake shell sees raw input and window size changes
         )
         self.port = self._server.sockets[0].getsockname()[1]
         public = self.host_key.export_public_key().decode().strip()
@@ -129,6 +135,9 @@ class SshTestServer:
 
     # ---------------------------------------------------------------- serving
     async def _handle(self, process: asyncssh.SSHServerProcess[str]) -> None:
+        if process.get_terminal_type() is not None:
+            await _fake_shell(self, process)
+            return
         command = str(process.command or "")
         self.executed.append(command)
         stdout, stderr, status = self.commands.get(command, ("", f"unknown: {command}\n", 127))
@@ -183,3 +192,51 @@ class _Server(asyncssh.SSHServer):
     def validate_kbdint_response(self, username: str, responses: Sequence[str]) -> bool:
         self._o.auth_attempts += 1
         return list(responses) == [self._o.otp]
+
+
+CRLF = "\r\n"
+
+
+async def _fake_shell_loop(owner: SshTestServer, process: asyncssh.SSHServerProcess[str]) -> None:
+    """A tiny interactive shell: `pwd`, `echo ...`, `exit N`, `sleep N`; prints resizes."""
+    command = process.command
+    cwd = f"/home/{USER}"
+    if command and command.startswith("cd -- "):
+        cwd = shlex.split(command.split(" 2>/dev/null", 1)[0])[2]
+    cols, rows, *_ = process.get_terminal_size()
+    out = process.stdout
+    out.write(f"{process.get_terminal_type()} {cols}x{rows}{CRLF}$ ")
+    while True:
+        try:
+            line = await process.stdin.readuntil(["\r", "\n"])
+        except asyncio.IncompleteReadError:
+            break
+        except asyncssh.TerminalSizeChanged as exc:
+            out.write(f"size {exc.width}x{exc.height}{CRLF}")
+            continue
+        except asyncssh.BreakReceived:
+            continue
+        out.write(line.rstrip("\r\n") + CRLF)  # echo, as a terminal line discipline does
+        word, _, rest = line.strip().partition(" ")
+        if word == "pwd":
+            out.write(cwd + CRLF)
+        elif word == "echo":
+            out.write(rest + CRLF)
+        elif word == "sleep":
+            await asyncio.sleep(float(rest or 1))
+        elif word == "exit":
+            process.exit(int(rest or 0))
+            return
+        elif word:
+            out.write(f"{word}: command not found{CRLF}")
+        out.write("$ ")
+    process.exit(0)
+
+
+async def _fake_shell(owner: SshTestServer, process: asyncssh.SSHServerProcess[str]) -> None:
+    owner.pty_commands.append(process.command)
+    owner.shells.append(process)
+    try:
+        await _fake_shell_loop(owner, process)
+    finally:
+        owner.shells.remove(process)

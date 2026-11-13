@@ -4,7 +4,10 @@ _Last updated: 2026-11-13_
 
 ## Current milestone
 
-**Next: M4 — terminal** (not planned yet; plan to be approved by the user first).
+**M4 — integrated SSH terminal: in progress on `main`** (plan approved 2026-11-13,
+[roadmap.md#m4](roadmap.md#m4--integrated-ssh-terminal)). Done: step 1 (`open_pty`).
+In parallel another agent builds M6 on branch `m6-snapshots` (migration `0005`,
+ADR `0006`); M4 uses migration `0006` / ADR `0007` if needed and assumptions from A400.
 
 - M3 — web UI: done 2026-11-13 on `main`
   ([roadmap.md#m3](roadmap.md#m3--web-ui)). Awaiting the user's manual check on the
@@ -116,6 +119,12 @@ the new OpenSSH format would need `bcrypt`: not added, the user has no passphras
 
 ## Changelog
 
+- 2026-11-13 — M4 step 1: `transport` contract gets `RemoteSession.open_pty` (login
+  shell, optional `cwd` checked over SFTP, optional tmux), `PtyChannel`, `TmuxSpec`,
+  `TerminalLimitError`, `RemoteDirectoryMissingError`; profiles get `max_terminals`
+  (default 3, own pool, never the monitor's channels) and `terminal_tmux`; read-only
+  allowlist gets `tmux ls|list-sessions` (no `#(...)` formats). Fake PTY shell in the
+  test SSH server.
 - 2026-11-13 — M3 closed in roadmap/status; next milestone M4 (terminal).
 - 2026-11-13 — README: web UI and campaigns usage.
 - 2026-11-13 — M3: campaign view in the web UI (case table with computed and manual

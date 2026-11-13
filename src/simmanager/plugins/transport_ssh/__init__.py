@@ -18,6 +18,9 @@ from simmanager.kernel.config import format_validation_error
 
 from .transport import SshSession, SshTransport
 
+SSHD_MAX_SESSIONS = 10
+"""ASSUMPTION(A401): sshd `MaxSessions` is the OpenSSH default (10) on the clusters."""
+
 
 class TransportConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -58,6 +61,15 @@ class SshTransportPlugin(Plugin):
             prompter=lambda: ctx.services.get(auth_contract.SERVICE_KEY),
         )
         ctx.add_disposer(transport.close, "close SSH connections")
+        for cid, profile in profiles.items():
+            if profile.channel_budget() > SSHD_MAX_SESSIONS:
+                ctx.log.warning(
+                    "%s: max_channels + 1 (SFTP) + max_terminals = %d exceeds the usual sshd "
+                    "MaxSessions (%d): extra channels may be refused",
+                    cid,
+                    profile.channel_budget(),
+                    SSHD_MAX_SESSIONS,
+                )
         ctx.log.info("%d cluster profile(s) loaded", len(profiles))
         return transport
 

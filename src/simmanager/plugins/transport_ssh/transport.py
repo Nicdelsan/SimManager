@@ -38,12 +38,16 @@ from simmanager.contracts.transport import (
     ClusterUnavailableError,
     CommandResult,
     ConnectionState,
+    RemoteDirectoryMissingError,
     RemoteStat,
+    TerminalLimitError,
+    TmuxSpec,
     TransportError,
 )
 
 from .certs import CertInfo, certs_for, files_fingerprint
 from .policy import check_readonly, to_command_line
+from .pty import SshPty, pty_command
 
 log = logging.getLogger("simmanager.plugin.transport-ssh")
 
@@ -67,6 +71,8 @@ class _Cluster:
         self.lock = asyncio.Lock()
         self.sftp_lock = asyncio.Lock()
         self.channels = asyncio.Semaphore(profile.max_channels)
+        self.terminals = 0
+        """Open interactive terminals: a separate pool, never the monitor's channels."""
         self.state = ConnectionState.DISCONNECTED
         self.detail = ""
         self.conn: asyncssh.SSHClientConnection | None = None
@@ -448,6 +454,54 @@ class SshSession:
                 raise TransportError(f"{argv[0]}: {exc}") from exc
         status = proc.exit_status if proc.exit_status is not None else -1
         return CommandResult(tuple(argv), status, str(proc.stdout or ""), str(proc.stderr or ""))
+
+    # --------------------------------------------------------------- terminals
+    async def open_pty(
+        self,
+        *,
+        cols: int,
+        rows: int,
+        cwd: str | None = None,
+        term: str = "xterm-256color",
+        tmux: TmuxSpec | None = None,
+    ) -> SshPty:
+        c = self._c
+        limit = c.profile.max_terminals
+        if c.terminals >= limit:
+            raise TerminalLimitError(
+                f"{c.id}: {limit} terminal(s) already open (max_terminals); close one first"
+                if limit
+                else f"{c.id}: terminals are disabled (max_terminals: 0)"
+            )
+        c.terminals += 1  # reserved before any await: concurrent opens cannot overshoot
+        try:
+            if cwd is not None:
+                found = await self.stat(cwd)
+                if found is None or not found.is_dir:
+                    raise RemoteDirectoryMissingError(c.id, cwd)
+            process = await self._conn.create_process(
+                pty_command(cwd, tmux),
+                term_type=term,
+                term_size=(cols, rows),
+                encoding=None,
+                stderr=asyncssh.STDOUT,
+            )
+        except BaseException as exc:
+            c.terminals -= 1
+            if isinstance(exc, (asyncssh.Error, OSError)):
+                raise TransportError(f"{c.id}: cannot open a terminal: {exc}") from exc
+            raise
+
+        async def release() -> None:
+            try:
+                await process.wait_closed()
+            finally:
+                c.terminals -= 1
+
+        task = asyncio.get_running_loop().create_task(release())
+        self._t._background.add(task)
+        task.add_done_callback(self._t._background.discard)
+        return SshPty(process)
 
     # -------------------------------------------------------------------- SFTP
     async def _sftp(self) -> asyncssh.SFTPClient:

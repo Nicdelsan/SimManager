@@ -30,6 +30,9 @@ READONLY_COMMANDS: dict[str, frozenset[str] | None] = {
     "hostname": None,
     "echo": None,
     "git": frozenset({"rev-parse", "status", "log", "diff", "show"}),
+    # M4: list the user's tmux sessions to offer "re-attach". No global options (-f/-S/-L
+    # come before the sub-command and are rejected by the sub-command check).
+    "tmux": frozenset({"ls", "list-sessions"}),
 }
 
 # Options that would write files, run programs or change state.
@@ -62,6 +65,9 @@ def check_readonly(argv: Sequence[str]) -> None:
     exe, args = argv[0], list(argv[1:])
     if exe not in READONLY_COMMANDS:
         raise CommandNotAllowedError(f"{exe!r} is not an allowlisted read-only command")
+    if exe == "tmux" and any("#(" in arg for arg in args):
+        # `#(cmd)` in a tmux format (-F, -f filter) runs a shell command.
+        raise CommandNotAllowedError("tmux: '#(...)' formats run commands")
 
     for arg in args:
         for bad in FORBIDDEN_ARGS.get(exe, ()):

@@ -19,6 +19,8 @@ from simmanager.plugins.transport_ssh.policy import check_readonly, to_command_l
         ["tail", "-c", "100", "/work/user1/log"],
         ["git", "-C", "/work/user1/case", "log", "-1"],
         ["id", "-un"],
+        ["tmux", "list-sessions", "-F", "#{session_name}"],
+        ["tmux", "ls"],
     ],
 )
 def test_allowed(argv: list[str]) -> None:
@@ -37,6 +39,13 @@ def test_allowed(argv: list[str]) -> None:
         ["find", ".", "-delete"],
         ["find", ".", "-exec", "rm", "{}", ";"],
         ["git", "checkout", "."],
+        ["tmux"],
+        ["tmux", "new-session", "-d"],
+        ["tmux", "kill-server"],
+        ["tmux", "-f", "/tmp/conf", "ls"],  # global options (config file) before sub-command
+        ["tmux", "-S", "/tmp/sock", "ls"],
+        ["tmux", "ls", "-F", "#(touch /tmp/x)"],  # formats can run shell commands
+        ["tmux", "list-sessions", "-f", "#{==:#(id),x}"],
         ["git", "-c", "core.pager=sh", "log"],
         ["git", "diff", "--output=/tmp/x"],
         ["date", "-s", "2020-01-01"],

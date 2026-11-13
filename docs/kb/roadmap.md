@@ -77,6 +77,37 @@ Plan approved 2026-11-13 (branch `m5-campaigns`, migration `0004_campaigns.sql`)
 - Template-preserving `.xlsx` export appending `SM_*` columns after `ws.max_column`
   (never overwriting the source file) and `simman campaign` CLI.
 
-## M4 — Terminal · M6 — Snapshots, rules, notifications
+## M4 — Integrated SSH terminal
+
+Plan approved 2026-11-13. The terminal is the user acting on the cluster; the monitor
+stays read-only (ADR 0007).
+
+- `transport.open_pty(cols, rows, cwd, term, tmux)` -> `PtyChannel` (bytes in/out,
+  `resize`, `close`, `exit_status`). Login shell: plain `shell` request, or
+  `cd -- <dir> ...; exec "$SHELL" -l` with a folder (checked over SFTP first; the UI
+  offers the home folder when it is gone).
+- Channels: own pool `max_terminals` (default 3) per cluster, failing fast when full;
+  monitor `max_channels` 6 unchanged; 6 + 1 SFTP + 3 = sshd `MaxSessions` 10 (A401).
+- Opening a terminal on a cluster in `AWAITING_AUTH`/`BACKOFF`/`FAILED` = one explicit
+  reconnect attempt (prompt in the browser), then the shell. No retries.
+- Plugin `terminal` (service `terminal`, web-only): sessions survive a closed WebSocket
+  for `orphan_timeout_s` (30 min) with a 1 MiB ring buffer replayed on re-attach; one
+  attachment per session; all sessions end with SimManager (UI says so, suggests tmux).
+- `ui-web`: `POST /api/terminals` returns a single-use ticket (30 s) bound to the
+  session; `/ws/term/{id}?ticket=` with binary data frames and JSON control frames;
+  same cookie/Host/Origin checks as M3.
+- Page `/terminal` (own window, tabs, xterm.js 6.0.0 + addon-fit 0.11.0 vendored): the
+  only page with `style-src 'self' 'unsafe-inline'` (xterm injects `<style>`).
+- tmux (per cluster `terminal_tmux`, off by default): each new tab creates a new session
+  `simman-<cluster>-<n>` (n increasing, never `-A`); "re-attach existing tmux session"
+  lists live `simman-*` sessions via the allowlisted `tmux ls`.
+- Quick actions insert a command without Enter (`cd`, `tail`/`less` log, `squeue`/`sacct`,
+  `vi *.in` in a drop-down menu). Only "Cancel job" executes: server-enforced
+  prepare/confirm, `run_mutating` with `ActionApproval`, `action.executed/result`. UI
+  only in M4 (no CLI).
+- Privacy: no terminal input/output in logs or events; only `terminal.opened/closed`
+  (cluster, folder, duration).
+
+## M6 — Snapshots, rules, notifications
 
 See [project-brief.md](project-brief.md). Detailed plans are written here when each starts.

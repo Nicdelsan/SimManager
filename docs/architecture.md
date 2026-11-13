@@ -61,7 +61,7 @@ Consumers import only these modules, never plugin implementations. Each has a
 | `storage.py` | `storage` | M0 | Append-only event log (`append_event`, `events`, `latest_events`); jobs/runs (`upsert_job`, `jobs`, `create_run`, `run`, `JobRecord`, `JobUpsert`, `RunRecord`); since M3 `runs`, `job_for_run` and bus event `storage.event_appended` (every durable event, live). |
 | `monitor.py` | `monitor` | M1 | `Monitor.poll/poll_all` → `PollReport`; bus event `monitor.polled`. |
 | `clusters.py` | — (data) | M1 | `ClusterProfile` / `ClustersFile` (clusters.yaml), `PollConfig`. |
-| `transport.py` | `transport` | M1 | `Transport.session/state/reset/clusters`; `RemoteSession.run_readonly/run_mutating/stat/listdir/read_range`; `ConnectionState`; errors `TransportError`, `ClusterUnavailableError`, `CommandNotAllowedError`; bus event `transport.state`. |
+| `transport.py` | `transport` | M1 | `Transport.session/state/reset/clusters`; `RemoteSession.run_readonly/run_mutating/stat/listdir/read_range`, `open_pty` (M4, `PtyChannel`, `TmuxSpec`); `ConnectionState`; errors `TransportError`, `ClusterUnavailableError`, `CommandNotAllowedError`, `TerminalLimitError`, `RemoteDirectoryMissingError`; bus event `transport.state`. |
 | `auth.py` | `auth.prompter` | M1 | `AuthPrompter.ask(AuthRequest)` / `confirm`: passwords, passphrases, OTP, yes/no. |
 | `scheduler.py` | `scheduler.<kind>` | M1 | `JobState`, `JobInfo`, `Scheduler.list_active/final_states/cancel_argv` (stateless; receives the `RemoteSession`). |
 | `timeseries.py` | `timeseries` | M2 | `TimeSeriesStore`, `FileCursor`, `SeriesKey`, `SeriesMeta`, `SeriesPoints`, `RunSolverState` (chunked float64 time series + cursors + solver run state). |

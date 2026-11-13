@@ -3,6 +3,9 @@
 The monitoring engine only uses `run_readonly` (allowlisted, read-only commands) and the file
 reads. Anything that changes the cluster goes through `run_mutating`, which requires an
 explicit user approval and is written to the event log (ADR 0004).
+
+`open_pty` (M4) gives the *user* an interactive login shell on the same connection: it is
+only opened on an explicit user action and SimManager never writes into it (ADR 0007).
 """
 
 from __future__ import annotations
@@ -59,6 +62,19 @@ class CommandNotAllowedError(TransportError):
     """`run_readonly` was asked to run something outside the read-only allowlist."""
 
 
+class TerminalLimitError(TransportError):
+    """The cluster already has `max_terminals` open terminals."""
+
+
+class RemoteDirectoryMissingError(TransportError):
+    """`open_pty(cwd=...)` names a directory that does not exist (any more)."""
+
+    def __init__(self, cluster_id: str, path: str) -> None:
+        super().__init__(f"{cluster_id}: directory not found: {path}")
+        self.cluster_id = cluster_id
+        self.path = path
+
+
 @dataclass(frozen=True)
 class CommandResult:
     argv: tuple[str, ...]
@@ -91,6 +107,42 @@ class ActionApproval:
     reason: str = ""
 
 
+@dataclass(frozen=True)
+class TmuxSpec:
+    """Run the terminal inside tmux on the cluster (if tmux is installed there)."""
+
+    session: str
+    """tmux session name."""
+    attach: bool = False
+    """Attach to this existing session instead of creating it. Creating never attaches:
+    a name that already exists makes tmux fail instead of joining an old session."""
+
+
+class PtyChannel(Protocol):
+    """An interactive shell on the cluster. Bytes in, bytes out; nothing is interpreted."""
+
+    async def read(self, max_bytes: int = 65536) -> bytes:
+        """Next output (stdout and stderr merged by the PTY). `b""` once the shell ended."""
+        ...
+
+    async def write(self, data: bytes) -> None:
+        """Send input as if typed."""
+        ...
+
+    def resize(self, cols: int, rows: int) -> None: ...
+
+    def close(self) -> None:
+        """Close the channel (the shell gets SIGHUP)."""
+        ...
+
+    async def wait_closed(self) -> None: ...
+
+    @property
+    def exit_status(self) -> int | None:
+        """Exit code of the shell; None while running or when killed by a signal."""
+        ...
+
+
 class RemoteSession(Protocol):
     """An authenticated connection to one cluster. Cheap to obtain; do not cache it."""
 
@@ -110,6 +162,20 @@ class RemoteSession(Protocol):
         self, argv: Sequence[str], *, approval: ActionApproval, timeout_s: float = 30
     ) -> CommandResult:
         """Run a command that changes the cluster. Logged as action.executed/action.result."""
+        ...
+
+    async def open_pty(
+        self,
+        *,
+        cols: int,
+        rows: int,
+        cwd: str | None = None,
+        term: str = "xterm-256color",
+        tmux: TmuxSpec | None = None,
+    ) -> PtyChannel:
+        """Interactive *login* shell (so `module` and the user's profile work), optionally
+        started in `cwd`. Uses its own per-cluster channel pool (`max_terminals`), never the
+        monitor's. Raises TerminalLimitError, RemoteDirectoryMissingError, TransportError."""
         ...
 
     async def stat(self, path: str) -> RemoteStat | None:

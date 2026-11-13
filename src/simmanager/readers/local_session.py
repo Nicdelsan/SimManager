@@ -10,7 +10,10 @@ from simmanager.contracts.transport import (
     ActionApproval,
     CommandNotAllowedError,
     CommandResult,
+    PtyChannel,
     RemoteStat,
+    TmuxSpec,
+    TransportError,
 )
 
 
@@ -75,6 +78,17 @@ class LocalRemoteSession:
         self, argv: Sequence[str], *, approval: ActionApproval, timeout_s: float = 30
     ) -> CommandResult:
         raise CommandNotAllowedError(f"LocalRemoteSession does not execute commands: {list(argv)}")
+
+    async def open_pty(
+        self,
+        *,
+        cols: int,
+        rows: int,
+        cwd: str | None = None,
+        term: str = "xterm-256color",
+        tmux: TmuxSpec | None = None,
+    ) -> PtyChannel:
+        raise TransportError("LocalRemoteSession has no terminals")
 
     async def stat(self, path: str) -> RemoteStat | None:
         try:
