@@ -4,10 +4,10 @@ _Last updated: 2026-11-13_
 
 ## M2 (branch m2-parsers)
 
-In progress since 2026-11-13 (parallel worktree on branch `m2-parsers`, separate from M1 on `main`).
+Complete on branch `m2-parsers` (parallel worktree, separate from M1 on `main`).
 Plan: [roadmap.md#m2](roadmap.md#m2--incremental-readers-and-parsers).
 
-### Implemented in M2 so far
+### Implemented in M2
 
 - `contracts/timeseries.py` (`timeseries` v1): `FileCursor`, `SeriesKey`, `SeriesMeta`, `SeriesPoints`, `RunSolverState`, `TimeSeriesStore` protocol.
 - `storage_sqlite`: migration `0003_timeseries.sql` (`file_cursors`, `series`, `sample_chunks` with float64 `array('d')` blobs + 16:1 and 256:1 min/max downsampled levels, `run_solver_state`) and `timeseries-sqlite` plugin (`SqliteTimeSeriesStore`) sharing the single SQLite connection.
@@ -16,10 +16,12 @@ Plan: [roadmap.md#m2](roadmap.md#m2--incremental-readers-and-parsers).
 - `solver-converge` (`solver.converge`): discovery (`inputs.in`, `logout.txt`, `outputs_*/stream0/*.out`, `*.out`) + pure parsers for multi-doc YAML `inputs.in`, ANSI-stripped `logout.txt`, and generic multi-qualifier `.out` headers.
 - `solver-openfoam` (`solver.openfoam`): discovery (`system/controlDict`, `system/decomposeParDict`, `log.<app>` / `log.out`) + pure parsers (`foamLog` first-residual rule, anchored `^Time =`, pre-`Time` Courant/deltaT block alignment, custom `min/max`, `End`, `FOAM FATAL [IO] ERROR`). `postProcessing/**` deferred until a sample is available.
 - `contracts/ingest.py` (`ingest` v1) and `solver-ingest` plugin: orchestrates `detect_solver`, `sync_run`, background `auto_backfill` tasks (`ctx.task`), M1 event hooks (`run.created`, `job.state_changed`), periodic polling, and durable events (`series.updated`, `run.progress`).
+- `cli/ingest.py`: `simman ingest local|status|series` subcommands over `LocalRemoteSession`, wired into `cli/main.py` via `ingest_app`.
 
 ### To wire at M1+M2 merge
 
 - `0003_timeseries.sql` stores `run_id INTEGER NOT NULL` without a hard `FOREIGN KEY REFERENCES runs(id)` because M1 migration `0002` lives on `main`; add the FK check/migration after merging M1 and M2.
+- Check `cli/main.py` alongside M1 CLI additions (`ingest_app` registration is 2 lines).
 
 ## Current milestone
 

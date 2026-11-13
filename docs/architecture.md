@@ -63,6 +63,9 @@ Consumers import only these modules, never plugin implementations. Each has a
 | `transport.py` | `transport` | M1 | `Transport.session/state/reset/clusters`; `RemoteSession.run_readonly/run_mutating/stat/listdir/read_range`; `ConnectionState`; errors `TransportError`, `ClusterUnavailableError`, `CommandNotAllowedError`; bus event `transport.state`. |
 | `auth.py` | `auth.prompter` | M1 | `AuthPrompter.ask(AuthRequest)` / `confirm`: passwords, passphrases, OTP, yes/no. |
 | `scheduler.py` | `scheduler.<kind>` | M1 | `JobState`, `JobInfo`, `Scheduler.list_active/final_states/cancel_argv` (stateless; receives the `RemoteSession`). |
+| `timeseries.py` | `timeseries` | M2 | `TimeSeriesStore`, `FileCursor`, `SeriesKey`, `SeriesMeta`, `SeriesPoints`, `RunSolverState` (chunked float64 time series + cursors + solver run state). |
+| `solver.py` | `solver.<kind>` | M2 | `Solver` (`kind`, `discover`, `parse_header`, `parse_chunk`, `align_offset`), `WatchedFile`, `ParsedChunk`, `SolverStatusUpdate`. |
+| `ingest.py` | `ingest` | M2 | `IngestService.sync_run` (`SyncRunResult`): orchestrates solver detection, incremental reading, backfill and event emission. |
 
 ## Storage (`plugins/storage_sqlite`)
 
@@ -72,6 +75,10 @@ SQLite in WAL mode via `aiosqlite`, hand-written SQL, numbered migrations in
 | Table | Since | Purpose |
 |---|---|---|
 | `events` | M0 | Append-only log of facts: `id, ts (UTC), kind, source, cluster_id, run_id, payload JSON`. |
+| `file_cursors` | M2 | Incremental byte offsets (`forward_offset`, `backfill_start`, `backfill_end`), 256-byte prefix and parser state per `(run_id, file_path)`. |
+| `series` | M2 | Discovered time-series metadata (`run_id, file_path, name, qualifier, unit`, summary stats). |
+| `sample_chunks` | M2 | Dense float64 `array('d')` chunks (`level=0`) and 16:1 / 256:1 min/max pyramids (`level=1, 2`). |
+| `run_solver_state` | M2 | Latest solver state, progress, times, `ncyc`, warnings and case/output dirs per `run_id`. |
 
 ## Milestones
 
@@ -79,7 +86,7 @@ SQLite in WAL mode via `aiosqlite`, hand-written SQL, numbered migrations in
 |---|---|---|
 | M0 | Kernel, config, discovery, SQLite + event log, CLI | done |
 | M1 | Cluster profiles, SSH transport (key/agent/OTP/jump), SLURM discovery, jobs/runs | next |
-| M2 | Incremental readers, CONVERGE/OpenFOAM parsers, time series | |
+| M2 | Incremental readers, CONVERGE/OpenFOAM parsers, time series | done (branch `m2-parsers`) |
 | M3 | Web UI (FastAPI, htmx, uPlot) | |
 | M4 | Integrated SSH terminal (xterm.js) | |
 | M5 | Excel campaigns | |

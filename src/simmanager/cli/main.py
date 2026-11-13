@@ -19,9 +19,12 @@ from simmanager.contracts.storage import Storage
 from simmanager.kernel import ConfigError, Kernel, PluginState
 from simmanager.logging_setup import setup_logging
 
+from .ingest import ingest_app
+
 app = typer.Typer(no_args_is_help=True, help="SimManager: monitor CFD simulations on HPC clusters.")
 config_app = typer.Typer(no_args_is_help=True, help="Inspect the layered configuration.")
 app.add_typer(config_app, name="config")
+app.add_typer(ingest_app, name="ingest")
 
 console = Console()
 T = TypeVar("T")
