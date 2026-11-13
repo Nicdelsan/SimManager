@@ -694,6 +694,19 @@ class CampaignManager:
             return
         await self.reconcile_all(cluster_id=cluster_id)
 
+    async def on_run_event(self, payload: Any) -> None:
+        """Immediately recompute linked cases' states when solver events arrive."""
+        if not isinstance(payload, Mapping):
+            return
+        run_id = payload.get("run_id")
+        if not isinstance(run_id, int) or isinstance(run_id, bool):
+            return
+        for lk in await self._store.links_for_run(run_id):
+            camp = await self._store.campaign(lk.campaign_id)
+            case = await self._store.case(lk.campaign_id, lk.case_id)
+            if camp is not None and case is not None and case.active:
+                await self._recompute_case_state(camp, case)
+
     async def _require_campaign(
         self, campaign: str | int, *, project_name: str | None = None
     ) -> CampaignRecord:
@@ -771,4 +784,11 @@ class CampaignExcelPlugin(Plugin):
         store: CampaignStore = ctx.services.require(contract.SERVICE_KEY)
         manager = CampaignManager(ctx, storage, ts, store, ctx.config)
         ctx.on(monitor_contract.POLLED_EVENT, manager.on_monitor_polled)
+        for kind in (
+            "run.solver_state_changed",
+            "solver.finished",
+            "solver.error",
+            "solver.nan_detected",
+        ):
+            ctx.on(kind, manager.on_run_event)
         return manager

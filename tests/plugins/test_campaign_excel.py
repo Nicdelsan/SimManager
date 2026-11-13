@@ -467,6 +467,80 @@ async def test_multi_run_and_computed_states(tmp_path: Path) -> None:
         await kernel.stop()
 
 
+async def test_solver_bus_events_update_computed_state_immediately(tmp_path: Path) -> None:
+    kernel = await _make_kernel(tmp_path / "sim.db")
+    try:
+        storage: Storage = kernel.services.require("storage")
+        ts: TimeSeriesStore = kernel.services.require("timeseries")
+        store = kernel.services.require(campaign_contract.SERVICE_KEY)
+        mgr = kernel.services.require(campaign_contract.MANAGER_SERVICE_KEY)
+
+        camp = await store.upsert_campaign(
+            CampaignSpec(project_name="p", name="live", work_root="/work/user1/live")
+        )
+        c1, _, _ = await store.upsert_case(
+            camp.id, CaseSpec(case_key="1", work_dir="/work/user1/live/001")
+        )
+        c2, _, _ = await store.upsert_case(
+            camp.id, CaseSpec(case_key="2", work_dir="/work/user1/live/002")
+        )
+
+        # Case 1: manual run goes running -> completed via solver bus events only.
+        run1 = await storage.create_run(work_dir="/work/user1/live/001", cluster_id="local")
+        await mgr.match_run("live", "1", run1.id, project_name="p")
+        assert (await store.case(camp.id, c1.id)).computed_state is CaseComputedState.PLANNED  # type: ignore[union-attr]
+
+        await ts.upsert_run_solver_state(
+            RunSolverState(
+                run_id=run1.id,
+                solver="converge",
+                work_dir="/work/user1/live/001",
+                solver_state=SolverState.RUNNING,
+            )
+        )
+        await kernel.bus.emit(
+            "run.solver_state_changed",
+            {"run_id": run1.id, "cluster_id": "local", "from": "unknown", "to": "running"},
+        )
+        assert (await store.case(camp.id, c1.id)).computed_state is CaseComputedState.RUNNING  # type: ignore[union-attr]
+
+        await ts.upsert_run_solver_state(
+            RunSolverState(
+                run_id=run1.id,
+                solver="converge",
+                work_dir="/work/user1/live/001",
+                solver_state=SolverState.COMPLETED,
+                progress=1.0,
+            )
+        )
+        await kernel.bus.emit("solver.finished", {"run_id": run1.id, "cluster_id": "local"})
+        assert (await store.case(camp.id, c1.id)).computed_state is CaseComputedState.COMPLETED  # type: ignore[union-attr]
+
+        # Case 2: failed via solver.error -> then diverged via solver.nan_detected immediately.
+        run2 = await storage.create_run(work_dir="/work/user1/live/002", cluster_id="local")
+        await mgr.match_run("live", "2", run2.id, project_name="p")
+
+        await ts.upsert_run_solver_state(
+            RunSolverState(
+                run_id=run2.id,
+                solver="openfoam",
+                work_dir="/work/user1/live/002",
+                solver_state=SolverState.FAILED,
+                error_message="FOAM FATAL ERROR",
+            )
+        )
+        await kernel.bus.emit("solver.error", {"run_id": run2.id, "cluster_id": "local"})
+        assert (await store.case(camp.id, c2.id)).computed_state is CaseComputedState.FAILED  # type: ignore[union-attr]
+
+        await storage.append_event(
+            "solver.nan_detected", {"column": "p"}, source="solver-ingest", run_id=run2.id
+        )
+        await kernel.bus.emit("solver.nan_detected", {"run_id": run2.id, "cluster_id": "local"})
+        assert (await store.case(camp.id, c2.id)).computed_state is CaseComputedState.DIVERGED  # type: ignore[union-attr]
+    finally:
+        await kernel.stop()
+
+
 async def test_export_places_sm_columns_after_max_column_and_preserves_original(
     tmp_path: Path,
 ) -> None:

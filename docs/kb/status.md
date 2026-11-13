@@ -20,13 +20,13 @@ needs one.
     `case.unmatched`, `case.state_changed`, `campaign.ambiguous_match`.
   - `campaign-sqlite` (`storage_sqlite/campaign.py`) and `campaign-excel`
     (`plugins/campaign_excel/`): Excel preview/idempotent reimport/rename detection,
-    `work_root`-scoped matching on `monitor.polled` (`auto_work_dir` → `auto_dir_name` →
-    `auto_regex`), `NNN_MMM` derivation, multi-run computed states (`planned`, `queued`,
-    `running`, `completed`, `stopped`, `diverged`, `failed`, `cancelled`, `unknown`),
-    enriched `.xlsx` export preserving template sheets/styles after `ws.max_column`.
+    `work_root`-scoped matching on `monitor.polled`, immediate state recomputation on
+    `run.solver_state_changed`, `solver.finished`, `solver.error`, and `solver.nan_detected`,
+    `NNN_MMM` derivation, multi-run computed states (`planned`, `queued`, `running`,
+    `completed`, `stopped`, `diverged`, `failed`, `cancelled`, `unknown`), enriched `.xlsx`
+    export preserving template sheets/styles after `ws.max_column`.
   - CLI (`cli/campaign.py`): `simman campaign import|list|show|match|unmatch|unmatched|export`.
-- Deferred to post-merge with M3: hooking solver state change events once M3 step 2 lands,
-  and campaign table view in the web UI.
+- Deferred to post-merge with M3: campaign table view in the web UI.
 
 - M1 — SSH and SLURM discovery: done 2026-11-13. All three clusters pass
   `simman cluster test`; real job lines still to be seen (A2, A7).
