@@ -5,8 +5,8 @@ Local monitor for CFD simulations (CONVERGE CFD, OpenFOAM) running on remote HPC
 files and shows progress, state and notifications. It never builds setups, edits remote files
 or submits jobs on its own.
 
-> Status: **M1 — SSH and SLURM job discovery**. Solver parsers, plots and the web UI
-> arrive in the next milestones (see `docs/architecture.md`).
+> Status: **M3 — web UI** (on top of SSH/SLURM discovery, solver parsers and Excel
+> campaigns). Details in `docs/kb/status.md`.
 
 ## Install
 
@@ -25,7 +25,7 @@ uv run simman --help
 uv run simman plugins               # start the kernel once, show the state of every plugin
 uv run simman config show --origin  # composed configuration and the layer each value comes from
 uv run simman config paths          # where config, database and logs live
-uv run simman serve                 # run until Ctrl+C (web UI from M3)
+uv run simman serve                 # monitor + web UI until Ctrl+C (opens the browser)
 uv run simman events -n 20          # last entries of the durable event log
 ```
 
@@ -52,6 +52,24 @@ needs a human (password, OTP, expired SSH certificate) it asks on the terminal a
 retries a rejected login on its own; passwords are never stored. For short-lived SSH
 certificates (`<key>-cert.pub`) it checks the expiry first and offers to run
 `cert_renew_command`.
+
+### Web UI
+
+`simman serve` starts the web UI on `http://127.0.0.1:8765` (local only) and opens the
+browser on a one-time link with a session token; use that printed link if the browser
+does not open (`--no-browser`, `--port N`). Pages: dashboard (clusters, active runs,
+events), runs and comparison, run detail with live plots (drag to zoom, log scale for
+residuals, progress and ETA), campaigns, clusters (Reconnect). Passwords and OTP codes
+are asked in a dialog in the browser while `serve` runs (`prompter: cli` in the config
+keeps them on the terminal); they are never stored or logged.
+
+### Campaigns
+
+```powershell
+uv run simman campaign import cases.xlsx   # Excel sheet of cases -> campaign
+uv run simman campaign show <name>
+uv run simman campaign export <name>       # copy of the sheet with SM_* state columns
+```
 
 ### Configuration
 

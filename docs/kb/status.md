@@ -114,6 +114,7 @@ the new OpenSSH format would need `bcrypt`: not added, the user has no passphras
 
 ## Changelog
 
+- 2026-11-13 — README: web UI and campaigns usage.
 - 2026-11-13 — M3: campaign view in the web UI (case table with computed and manual
   state, filters, linked runs with unmatch, never-launched cases, runs not associated
   with manual association) on `campaign.manager`.
