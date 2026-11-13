@@ -21,6 +21,7 @@ from simmanager.contracts.monitor import PollReport
 from simmanager.contracts.storage import EventRecord
 from simmanager.kernel import Context, Plugin
 
+from .actions import build_actions_router
 from .api import Api, ClusterStatusCache, build_router, event_json
 from .app import create_app
 from .campaigns import build_campaign_router
@@ -104,7 +105,12 @@ class UiWebPlugin(Plugin):
             app = create_app(
                 policy,
                 hub,
-                [build_router(api), build_campaign_router(api), build_terminal_router(terminals)],
+                [
+                    build_router(api),
+                    build_campaign_router(api),
+                    build_terminal_router(terminals),
+                    build_actions_router(api),
+                ],
                 [build_terminal_ws_router(terminals)],
             )
             task = await server.start(app, sock)

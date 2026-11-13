@@ -3,6 +3,7 @@
 
 import { api } from "../api.js";
 import { h } from "../util.js";
+import { cancelJob } from "../cancel.js";
 
 const cache = new Map(); // run id -> Promise of the quick-actions payload
 
@@ -42,6 +43,11 @@ function render(tab, data) {
       },
     }, h("option", { value: "" }, `${group} ▾`), actions.map((a) => h("option", {}, a.label)));
     nodes.push(select);
+  }
+  if (data.job && data.job.active) {
+    nodes.push(h("button", { type: "button", class: "danger", title: "scancel this job (asks for confirmation)",
+      onclick: async () => { if (await cancelJob(data.cluster_id, data.job.job_id)) cache.delete(data.run_id); } },
+      `Cancel job ${data.job.job_id}…`));
   }
   if (data.note) nodes.push(h("span", { class: "muted", title: data.note }, "(inputs: n/a)"));
   return nodes;

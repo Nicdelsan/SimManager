@@ -7,6 +7,7 @@ import { Plot, isResidual } from "../plot.js";
 import { h, clear, debounce, basename, fmtDuration, fmtRough, fmtTime, pct, progressBar, stateBadge } from "../util.js";
 import { eventItem, listen } from "./common.js";
 import { openTerminal } from "../terminal/open.js";
+import { cancelJob } from "../cancel.js";
 
 const BACKFILL_RELOAD_MS = 10000;
 
@@ -54,6 +55,10 @@ function header(detail) {
         ? h("button", { type: "button", title: "Open a terminal in the run folder",
             onclick: () => openTerminal({ cluster: detail.cluster_id, cwd: detail.work_dir, run: detail.id }) },
           "Terminal")
+        : null,
+      job && job.active
+        ? h("button", { type: "button", class: "danger", title: "scancel this job (asks for confirmation)",
+            onclick: () => cancelJob(detail.cluster_id, job.job_id) }, "Cancel job…")
         : null),
     solver && solver.error_message ? h("p", { class: "error" }, solver.error_message) : null);
 }

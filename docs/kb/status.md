@@ -5,7 +5,7 @@ _Last updated: 2026-11-13_
 ## Current milestone
 
 **M4 — integrated SSH terminal: in progress on `main`** (plan approved 2026-11-13,
-[roadmap.md#m4](roadmap.md#m4--integrated-ssh-terminal)). Done: step 1 (`open_pty`), step 2 (`terminal` service), step 3 (web endpoints), step 4 (terminal page), step 5 (entry points, quick actions).
+[roadmap.md#m4](roadmap.md#m4--integrated-ssh-terminal)). Done: step 1 (`open_pty`), step 2 (`terminal` service), step 3 (web endpoints), step 4 (terminal page), step 5 (entry points, quick actions), step 6 (cancel job).
 In parallel another agent builds M6 on branch `m6-snapshots` (migration `0005`,
 ADR `0006`); M4 uses migration `0006` / ADR `0007` if needed and assumptions from A400.
 
@@ -119,6 +119,12 @@ the new OpenSSH format would need `bcrypt`: not added, the user has no passphras
 
 ## Changelog
 
+- 2026-11-13 — M4 step 6: "Cancel job…" in the run detail and in the terminal toolbar.
+  Server-enforced two steps: `POST /api/actions/job-cancel/prepare` (only active jobs
+  known to SimManager; single-use `action_id`, 60 s) and `POST /api/actions/{id}/confirm`
+  → `run_mutating(scheduler.cancel_argv)` with `ActionApproval("job.cancel", "web")`
+  (`action.executed` / `action.result` in the event log), then a poll of the cluster.
+  Confirmation dialog shows job id, name, cluster and folder. UI only (no CLI).
 - 2026-11-13 — M4 step 5: "Terminal" drop-down on cluster cards (home or a work root) and
   button in the run detail (run folder); both reuse the `simman-terminal` window.
   `GET /api/runs/{id}/quick-actions`: drop-down menus Folder / Log / Job / Edit input
