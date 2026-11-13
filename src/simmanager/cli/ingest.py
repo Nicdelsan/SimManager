@@ -14,8 +14,10 @@ from rich.table import Table
 from simmanager import paths
 from simmanager.app import AppSetup, prepare, start_kernel
 from simmanager.contracts import ingest as ingest_contract
+from simmanager.contracts import storage as storage_contract
 from simmanager.contracts import timeseries as ts_contract
 from simmanager.contracts.ingest import IngestService
+from simmanager.contracts.storage import Storage
 from simmanager.contracts.timeseries import TimeSeriesStore
 from simmanager.kernel import ConfigError, Kernel
 from simmanager.logging_setup import setup_logging
@@ -65,7 +67,12 @@ def _fmt_float(value: float | None, precision: str = ".6g") -> str:
 @ingest_app.command("local")
 def ingest_local(
     work_dir: Annotated[Path, typer.Argument(help="Local simulation working directory.")],
-    run_id: Annotated[int, typer.Option("--run-id", "-r", help="Run id to store under.")] = 1,
+    run_id: Annotated[
+        int | None,
+        typer.Option(
+            "--run-id", "-r", help="Existing run id to update; omit to create a manual run."
+        ),
+    ] = None,
     solver: Annotated[
         str | None,
         typer.Option("--solver", "-s", help="Explicit solver kind (converge or openfoam)."),
@@ -92,15 +99,30 @@ def ingest_local(
         stdout_path = f"{session.root_posix}/{stdout_path.lstrip('./')}"
 
     async def body(kernel: Kernel) -> None:
+        storage: Storage | None = kernel.services.get(storage_contract.SERVICE_KEY)
         ingestor: IngestService | None = kernel.services.get(ingest_contract.SERVICE_KEY)
         ts: TimeSeriesStore | None = kernel.services.get(ts_contract.SERVICE_KEY)
-        if ingestor is None or ts is None:
-            _console.print("[red]ingest/timeseries service unavailable[/] (see `simman plugins`)")
+        if storage is None or ingestor is None or ts is None:
+            _console.print("[red]ingest/storage service unavailable[/] (see `simman plugins`)")
             raise typer.Exit(1)
+
+        if run_id is None:
+            rec = await storage.create_run(
+                work_dir=session.root_posix, cluster_id=session.cluster_id
+            )
+            target_run_id = rec.id
+        else:
+            existing = await storage.run(run_id)
+            if existing is None:
+                _console.print(
+                    f"[red]run {run_id} not found[/] (omit --run-id to create a manual run)"
+                )
+                raise typer.Exit(1)
+            target_run_id = existing.id
 
         res = await ingestor.sync_run(
             session,
-            run_id,
+            target_run_id,
             session.root_posix,
             solver_kind=solver,
             stdout_path=stdout_path,
@@ -110,8 +132,8 @@ def ingest_local(
             _console.print(f"[yellow]no supported solver detected in[/] {work_dir}")
             raise typer.Exit(1)
 
-        state = await ts.get_run_solver_state(run_id)
-        table = Table("field", "value", title=f"Ingested run {run_id}")
+        state = await ts.get_run_solver_state(target_run_id)
+        table = Table("field", "value", title=f"Ingested run {target_run_id}")
         table.add_row("solver", res.solver)
         table.add_row("state", str(res.solver_state))
         table.add_row("progress", f"{res.progress * 100:.1f}%" if res.progress is not None else "-")

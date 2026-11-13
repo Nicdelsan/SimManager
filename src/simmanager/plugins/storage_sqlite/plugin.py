@@ -15,7 +15,7 @@ from pydantic import BaseModel, ConfigDict
 from simmanager import paths
 from simmanager.contracts import storage as contract
 from simmanager.contracts.scheduler import JobInfo, JobState
-from simmanager.contracts.storage import EventRecord, JobRecord, JobUpsert
+from simmanager.contracts.storage import EventRecord, JobRecord, JobUpsert, RunRecord
 from simmanager.kernel import Context, Plugin
 
 from .migrate import apply_migrations, bundled_migrations
@@ -177,6 +177,44 @@ class SqliteStorage:
         args.append(limit)
         async with self._db.execute(sql, args) as cur:
             return [_job_record(row) async for row in cur]
+
+    async def create_run(
+        self,
+        *,
+        work_dir: str | None = None,
+        cluster_id: str | None = None,
+    ) -> RunRecord:
+        now = datetime.now(UTC).isoformat()
+        async with self._write_lock:
+            cur = await self._db.execute(
+                "INSERT INTO runs (job_pk, origin, cluster_id, work_dir, created_at)"
+                " VALUES (NULL, 'manual', ?, ?, ?)",
+                (cluster_id, work_dir, now),
+            )
+            await self._db.commit()
+        assert cur.lastrowid is not None
+        return RunRecord(
+            id=cur.lastrowid,
+            job_pk=None,
+            origin="manual",
+            cluster_id=cluster_id,
+            work_dir=work_dir,
+            created_at=datetime.fromisoformat(now),
+        )
+
+    async def run(self, run_id: int) -> RunRecord | None:
+        async with self._db.execute("SELECT * FROM runs WHERE id = ?", (run_id,)) as cur:
+            row = await cur.fetchone()
+        if row is None:
+            return None
+        return RunRecord(
+            id=row["id"],
+            job_pk=row["job_pk"],
+            origin=row["origin"],
+            cluster_id=row["cluster_id"],
+            work_dir=row["work_dir"],
+            created_at=datetime.fromisoformat(row["created_at"]),
+        )
 
     async def _job_row(self, cluster_id: str, job_id: str) -> aiosqlite.Row | None:
         async with self._db.execute(

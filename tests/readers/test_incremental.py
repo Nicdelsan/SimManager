@@ -101,11 +101,12 @@ async def test_incremental_partial_line_and_short_growth(tmp_path: Path) -> None
 
     storage = await SqliteStorage.open(str(tmp_path / "test.db"))
     ts: TimeSeriesStore = SqliteTimeSeriesStore(storage.connection, storage.write_lock)
+    run_id = (await storage.create_run(work_dir=str(case))).id
     session = LocalRemoteSession(case)
     reader = IncrementalReader()
     watched = WatchedFile("series.txt", f"{session.root_posix}/series.txt", "plain")
 
-    res1 = await reader.sync_file(session, ts, _DummySolver(), 1, watched)
+    res1 = await reader.sync_file(session, ts, _DummySolver(), run_id, watched)
     assert res1.points_ingested == 1
     assert not res1.truncated
 
@@ -115,11 +116,11 @@ async def test_incremental_partial_line_and_short_growth(tmp_path: Path) -> None
         for i in range(3, 40):
             fh.write(f"{float(i)} {float(i * 10)}\n".encode())
 
-    res2 = await reader.sync_file(session, ts, _DummySolver(), 1, watched)
+    res2 = await reader.sync_file(session, ts, _DummySolver(), run_id, watched)
     assert not res2.truncated
     assert res2.points_ingested == 38
 
-    s = (await ts.list_series(1))[0]
+    s = (await ts.list_series(run_id))[0]
     pts = await ts.query_series(s.id)
     assert pts.x == [float(i) for i in range(1, 40)]
     assert pts.y == [float(i * 10) for i in range(1, 40)]
@@ -134,18 +135,19 @@ async def test_truncation_and_header_replacement_reset(tmp_path: Path) -> None:
 
     storage = await SqliteStorage.open(str(tmp_path / "test.db"))
     ts = SqliteTimeSeriesStore(storage.connection, storage.write_lock)
+    run_id = (await storage.create_run(work_dir=str(case))).id
     session = LocalRemoteSession(case)
     reader = IncrementalReader()
     watched = WatchedFile("series.txt", f"{session.root_posix}/series.txt", "plain")
 
-    await reader.sync_file(session, ts, _DummySolver(), 1, watched)
+    await reader.sync_file(session, ts, _DummySolver(), run_id, watched)
 
     # Case 1: shrink file -> truncated
     data_file.write_bytes(b"# cols: x y\n1.0 1.0\n")
-    res_shrink = await reader.sync_file(session, ts, _DummySolver(), 1, watched)
+    res_shrink = await reader.sync_file(session, ts, _DummySolver(), run_id, watched)
     assert res_shrink.truncated
     assert res_shrink.points_ingested == 1
-    s = (await ts.list_series(1))[0]
+    s = (await ts.list_series(run_id))[0]
     assert (await ts.query_series(s.id)).y == [1.0]
 
     # Case 2: replace with a larger file whose first 256 bytes differ
@@ -153,10 +155,10 @@ async def test_truncation_and_header_replacement_reset(tmp_path: Path) -> None:
         f"{float(i)} {float(i * 2)}\n".encode() for i in range(1, 30)
     )
     data_file.write_bytes(replacement)
-    res_rep = await reader.sync_file(session, ts, _DummySolver(), 1, watched)
+    res_rep = await reader.sync_file(session, ts, _DummySolver(), run_id, watched)
     assert res_rep.truncated
     assert res_rep.points_ingested == 29
-    s2 = (await ts.list_series(1))[0]
+    s2 = (await ts.list_series(run_id))[0]
     assert (await ts.query_series(s2.id)).y == [float(i * 2) for i in range(1, 30)]
     await storage.close()
 
@@ -173,6 +175,7 @@ async def test_tail_first_and_background_backfill_with_multiline_blocks(tmp_path
 
     storage = await SqliteStorage.open(str(tmp_path / "test.db"))
     ts = SqliteTimeSeriesStore(storage.connection, storage.write_lock)
+    run_id = (await storage.create_run(work_dir=str(case))).id
     session = LocalRemoteSession(case)
     cfg = ReaderConfig(
         chunk_bytes=256,
@@ -184,10 +187,10 @@ async def test_tail_first_and_background_backfill_with_multiline_blocks(tmp_path
     watched = WatchedFile("log.txt", f"{session.root_posix}/log.txt", "step_block")
 
     # Initial sync reads header + tail first, leaving middle gap for backfill
-    res = await reader.sync_file(session, ts, _DummySolver(), 1, watched)
+    res = await reader.sync_file(session, ts, _DummySolver(), run_id, watched)
     assert res.needs_backfill
     assert res.points_ingested > 0
-    s = (await ts.list_series(1))[0]
+    s = (await ts.list_series(run_id))[0]
     pts_tail = await ts.query_series(s.id)
     assert pts_tail.x[-1] == 200.0
     assert pts_tail.x[0] > 1.0  # tail preview skipped older steps
@@ -196,16 +199,16 @@ async def test_tail_first_and_background_backfill_with_multiline_blocks(tmp_path
     with log_file.open("ab") as fh:
         fh.write(b"STEP 201\nVAL 2010\n")
 
-    res_live = await reader.sync_file(session, ts, _DummySolver(), 1, watched)
+    res_live = await reader.sync_file(session, ts, _DummySolver(), run_id, watched)
     assert res_live.points_ingested == 1
     assert res_live.needs_backfill
 
     # Finish backfill
-    prog = await reader.backfill_step(session, ts, _DummySolver(), 1, watched, max_chunks=None)
+    prog = await reader.backfill_step(session, ts, _DummySolver(), run_id, watched, max_chunks=None)
     assert prog.done
     assert prog.remaining_bytes == 0
 
-    s_all = (await ts.list_series(1))[0]
+    s_all = (await ts.list_series(run_id))[0]
     pts_all = await ts.query_series(s_all.id, max_points=5000)
     assert pts_all.x == [float(i) for i in range(1, 202)]
     assert pts_all.y == [float(i * 10) for i in range(1, 202)]

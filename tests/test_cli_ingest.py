@@ -33,10 +33,18 @@ def test_cli_ingest_converge_status_and_series(
 ) -> None:
     _isolate_env(monkeypatch, tmp_path)
 
-    res = runner.invoke(app, ["ingest", "local", str(FIXTURES_ROOT / "converge"), "--run-id", "1"])
+    # Omit --run-id -> creates a manual run in `runs` (id=1)
+    res = runner.invoke(app, ["ingest", "local", str(FIXTURES_ROOT / "converge")])
     assert res.exit_code == 0, res.stdout
+    assert "Ingested run 1" in res.stdout
     assert "converge" in res.stdout
     assert "completed" in res.stdout
+
+    # Re-ingesting with --run-id 1 reuses the existing run cleanly
+    res_again = runner.invoke(
+        app, ["ingest", "local", str(FIXTURES_ROOT / "converge"), "--run-id", "1"]
+    )
+    assert res_again.exit_code == 0, res_again.stdout
 
     st = runner.invoke(app, ["ingest", "status", "1"])
     assert st.exit_code == 0, st.stdout
@@ -56,27 +64,25 @@ def test_cli_ingest_openfoam_and_missing_dirs(
 
     res = runner.invoke(
         app,
-        [
-            "ingest",
-            "local",
-            str(FIXTURES_ROOT / "openfoam"),
-            "--run-id",
-            "2",
-            "--solver",
-            "openfoam",
-        ],
+        ["ingest", "local", str(FIXTURES_ROOT / "openfoam"), "--solver", "openfoam"],
     )
     assert res.exit_code == 0, res.stdout
+    assert "Ingested run 1" in res.stdout
     assert "openfoam" in res.stdout
 
     sr = runner.invoke(
-        app, ["ingest", "series", "2", "--name", "deltaT", "--points", "--limit", "5"]
+        app, ["ingest", "series", "1", "--name", "deltaT", "--points", "--limit", "5"]
     )
     assert sr.exit_code == 0, sr.stdout
     assert "deltaT" in sr.stdout
 
     missing_dir = runner.invoke(app, ["ingest", "local", str(tmp_path / "does-not-exist")])
     assert missing_dir.exit_code == 2
+
+    missing_manual_run = runner.invoke(
+        app, ["ingest", "local", str(FIXTURES_ROOT / "openfoam"), "--run-id", "999"]
+    )
+    assert missing_manual_run.exit_code == 1
 
     missing_run = runner.invoke(app, ["ingest", "status", "999"])
     assert missing_run.exit_code == 1

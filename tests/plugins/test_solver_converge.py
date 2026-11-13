@@ -122,11 +122,12 @@ async def test_converge_discover_and_ingest_via_local_session(tmp_path: Path) ->
 
     storage = await SqliteStorage.open(str(tmp_path / "test.db"))
     ts = SqliteTimeSeriesStore(storage.connection, storage.write_lock)
+    run_id = (await storage.create_run(work_dir=case.as_posix())).id
     reader = IncrementalReader()
     for w in watched:
-        await reader.sync_file(session, ts, solver, 1, w)
+        await reader.sync_file(session, ts, solver, run_id, w)
 
-    series = await ts.list_series(1)
+    series = await ts.list_series(run_id)
     flow_series = [s for s in series if s.name == "Flow_Rate"]
     assert {s.qualifier for s in flow_series} == {"Regions_1_to_3", "bound_id_11"}
     await storage.close()
@@ -144,17 +145,18 @@ async def test_converge_real_samples_tail_first_and_backfill(tmp_path: Path) -> 
 
     storage = await SqliteStorage.open(str(tmp_path / "samples_converge.db"))
     ts = SqliteTimeSeriesStore(storage.connection, storage.write_lock)
+    run_id = (await storage.create_run(work_dir=session.root_posix)).id
     reader = IncrementalReader(ReaderConfig(full_read_max_bytes=50 * 1024 * 1024))
 
     flow_w = next(w for w in watched if w.file_path == "area_avg_regions_flow.out")
-    res = await reader.sync_file(session, ts, solver, 1, flow_w)
+    res = await reader.sync_file(session, ts, solver, run_id, flow_w)
     assert res.needs_backfill
     assert res.points_ingested > 0
 
-    prog = await reader.backfill_step(session, ts, solver, 1, flow_w, max_chunks=None)
+    prog = await reader.backfill_step(session, ts, solver, run_id, flow_w, max_chunks=None)
     assert prog.done
 
     logout_w = next(w for w in watched if w.file_path == "logout.txt")
-    res_log = await reader.sync_file(session, ts, solver, 1, logout_w)
+    res_log = await reader.sync_file(session, ts, solver, run_id, logout_w)
     assert any(u.solver_state is SolverState.COMPLETED for u in res_log.status_updates)
     await storage.close()

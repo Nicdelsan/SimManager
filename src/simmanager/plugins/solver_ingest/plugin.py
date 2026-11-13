@@ -25,8 +25,6 @@ from simmanager.contracts.transport import RemoteSession, Transport, TransportEr
 from simmanager.kernel import Context, Plugin
 from simmanager.readers import IncrementalReader, ReaderConfig
 
-_TERMINAL_JOB_STATES = frozenset({"completed", "failed", "cancelled", "timeout", "unknown"})
-
 
 class IngestConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -306,60 +304,6 @@ class SolverIngestor:
         await self._ctx.emit(kind, {"run_id": run_id, "cluster_id": cluster_id, **payload})
 
     # ------------------------------------------------------------- M1 event hooks
-    async def on_run_created(self, payload: Any) -> None:
-        if not isinstance(payload, Mapping):
-            return
-        run_id = payload.get("run_id")
-        cluster_id = payload.get("cluster_id")
-        work_dir = payload.get("work_dir")
-        if (
-            not isinstance(run_id, int)
-            or not isinstance(cluster_id, str)
-            or not isinstance(work_dir, str)
-        ):
-            return
-        solver_kind = payload.get("solver")
-        stdout_path = payload.get("stdout_path")
-        self._tracked[run_id] = _TrackedRun(
-            run_id=run_id,
-            cluster_id=cluster_id,
-            work_dir=work_dir,
-            solver_kind=solver_kind if isinstance(solver_kind, str) else None,
-            stdout_path=stdout_path if isinstance(stdout_path, str) else None,
-        )
-        self._spawn_sync(self._tracked[run_id])
-
-    async def on_job_state_changed(self, payload: Any) -> None:
-        if not isinstance(payload, Mapping):
-            return
-        run_id = payload.get("run_id")
-        if not isinstance(run_id, int):
-            return
-        tracked = self._tracked.get(run_id)
-        if tracked is None:
-            cluster_id = payload.get("cluster_id")
-            work_dir = payload.get("work_dir")
-            if isinstance(cluster_id, str) and isinstance(work_dir, str):
-                tracked = _TrackedRun(
-                    run_id=run_id,
-                    cluster_id=cluster_id,
-                    work_dir=work_dir,
-                    solver_kind=payload.get("solver")
-                    if isinstance(payload.get("solver"), str)
-                    else None,
-                    stdout_path=payload.get("stdout_path")
-                    if isinstance(payload.get("stdout_path"), str)
-                    else None,
-                )
-                self._tracked[run_id] = tracked
-            else:
-                return
-
-        to_state = str(payload.get("to") or payload.get("state") or "").lower()
-        if to_state in _TERMINAL_JOB_STATES:
-            tracked.terminal = True
-        self._spawn_sync(tracked)
-
     async def on_monitor_polled(self, payload: Any) -> None:
         if isinstance(payload, PollReport):
             if not payload.ok:
@@ -575,8 +519,6 @@ class SolverIngestPlugin(Plugin):
         storage: Storage = ctx.services.require(storage_contract.SERVICE_KEY)
         ts: TimeSeriesStore = ctx.services.require(ts_contract.SERVICE_KEY)
         ingestor = SolverIngestor(ctx, storage, ts, ctx.config)
-        ctx.on("run.created", ingestor.on_run_created)
-        ctx.on("job.state_changed", ingestor.on_job_state_changed)
         ctx.on(monitor_contract.POLLED_EVENT, ingestor.on_monitor_polled)
         ctx.task(ingestor.poll_loop(), name="poll-loop")
         return ingestor

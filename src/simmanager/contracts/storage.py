@@ -42,6 +42,18 @@ class JobRecord:
 
 
 @dataclass(frozen=True)
+class RunRecord:
+    """One execution of a case (`origin = 'discovered' | 'manual'`)."""
+
+    id: int
+    job_pk: int | None
+    origin: str
+    cluster_id: str | None
+    work_dir: str | None
+    created_at: datetime
+
+
+@dataclass(frozen=True)
 class JobUpsert:
     """Outcome of `upsert_job`."""
 
@@ -93,4 +105,17 @@ class Storage(Protocol):
         limit: int = 500,
     ) -> list[JobRecord]:
         """Jobs, most recently submitted first."""
+        ...
+
+    async def create_run(
+        self,
+        *,
+        work_dir: str | None = None,
+        cluster_id: str | None = None,
+    ) -> RunRecord:
+        """Create a manually registered run (`origin = 'manual'`)."""
+        ...
+
+    async def run(self, run_id: int) -> RunRecord | None:
+        """Fetch a run by id, or None when it does not exist."""
         ...

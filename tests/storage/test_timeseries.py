@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from simmanager.contracts.storage import Storage
 from simmanager.contracts.timeseries import (
     FileCursor,
     FileStatus,
@@ -31,9 +32,15 @@ def db_path(tmp_path: Path) -> str:
 async def test_cursors_and_reset(db_path: str) -> None:
     storage = await SqliteStorage.open(db_path)
     ts = SqliteTimeSeriesStore(storage.connection, storage.write_lock)
+    run = await storage.create_run(work_dir="/work/user1/case_a")
+    run_id = run.id
+
+    # FK toward runs(id) must reject nonexistent run ids
+    with pytest.raises(sqlite3.IntegrityError):
+        await ts.append_samples(99999, {SeriesKey("thermo.out", "Pressure"): ([0.0], [1.0])})
 
     c1 = FileCursor(
-        run_id=1,
+        run_id=run_id,
         file_path="stream0/thermo.out",
         parser_kind="converge.out",
         file_size=1024,
@@ -49,14 +56,14 @@ async def test_cursors_and_reset(db_path: str) -> None:
     assert c1.needs_backfill
     await ts.upsert_cursor(c1)
 
-    got = await ts.get_cursor(1, "stream0/thermo.out")
+    got = await ts.get_cursor(run_id, "stream0/thermo.out")
     assert got is not None
     assert got.header_data == {"columns": ["Time", "Pressure"]}
     assert got.head_prefix == b"# CONVERGE"
     assert got.needs_backfill
 
     c1_done = FileCursor(
-        run_id=1,
+        run_id=run_id,
         file_path="stream0/thermo.out",
         parser_kind="converge.out",
         file_size=2048,
@@ -68,16 +75,17 @@ async def test_cursors_and_reset(db_path: str) -> None:
         status=FileStatus.ACTIVE,
     )
     await ts.upsert_cursor(c1_done)
-    got2 = await ts.get_cursor(1, "stream0/thermo.out")
+    got2 = await ts.get_cursor(run_id, "stream0/thermo.out")
     assert got2 is not None
     assert not got2.needs_backfill
-    assert len(await ts.list_cursors(1)) == 1
+    assert len(await ts.list_cursors(run_id)) == 1
     await storage.close()
 
 
 async def test_chunked_append_downsampling_and_out_of_order_backfill(db_path: str) -> None:
     storage = await SqliteStorage.open(db_path)
     ts = SqliteTimeSeriesStore(storage.connection, storage.write_lock)
+    run_id = (await storage.create_run(work_dir="/work/user1/case_a")).id
 
     key = SeriesKey("log.out", "residual.p", "", "", "Time", "s")
 
@@ -86,7 +94,7 @@ async def test_chunked_append_downsampling_and_out_of_order_backfill(db_path: st
     tail_y = [math.sin(i * 0.01) for i in range(2500, 5000)]
     tail_y[500] = 42.0  # spike at x=3000
 
-    metas = await ts.append_samples(1, {key: (tail_x, tail_y)})
+    metas = await ts.append_samples(run_id, {key: (tail_x, tail_y)})
     assert len(metas) == 1
     assert metas[0].point_count == 2500
     assert metas[0].last_x == 4999.0
@@ -95,7 +103,7 @@ async def test_chunked_append_downsampling_and_out_of_order_backfill(db_path: st
     head_y = [math.cos(i * 0.01) for i in range(0, 2500)]
     head_y[100] = -99.0  # spike at x=100
 
-    metas2 = await ts.append_samples(1, {key: (head_x, head_y)})
+    metas2 = await ts.append_samples(run_id, {key: (head_x, head_y)})
     assert metas2[0].point_count == 5000
     # Backfill must not regress last_x / last_y!
     assert metas2[0].last_x == 4999.0
@@ -123,17 +131,18 @@ async def test_chunked_append_downsampling_and_out_of_order_backfill(db_path: st
 async def test_nan_inf_and_reset_file_data(db_path: str) -> None:
     storage = await SqliteStorage.open(db_path)
     ts = SqliteTimeSeriesStore(storage.connection, storage.write_lock)
+    run_id = (await storage.create_run(work_dir="/work/user1/case_a")).id
 
     k1 = SeriesKey("thermo.out", "Pressure", "", "MPa")
     k2 = SeriesKey("other.out", "Temp", "", "K")
     await ts.append_samples(
-        1,
+        run_id,
         {
             k1: ([0.1, 0.2, 0.3], [1.0, float("nan"), float("inf")]),
             k2: ([0.1, 0.2], [300.0, 301.0]),
         },
     )
-    series = await ts.list_series(1)
+    series = await ts.list_series(run_id)
     assert len(series) == 2
 
     thermo = next(s for s in series if s.file_path == "thermo.out")
@@ -141,8 +150,8 @@ async def test_nan_inf_and_reset_file_data(db_path: str) -> None:
     assert math.isnan(pts.y[1])
     assert math.isinf(pts.y[2])
 
-    await ts.reset_file_data(1, "thermo.out")
-    remaining = await ts.list_series(1)
+    await ts.reset_file_data(run_id, "thermo.out")
+    remaining = await ts.list_series(run_id)
     assert [s.file_path for s in remaining] == ["other.out"]
     await storage.close()
 
@@ -158,10 +167,12 @@ async def test_run_solver_state_and_plugin_reload(db_path: str) -> None:
     await kernel.add(SqliteStoragePlugin, SqliteTimeSeriesPlugin)
     assert kernel.state("timeseries-sqlite") is PluginState.ACTIVE
 
+    storage: Storage = kernel.services.require("storage")
     ts: TimeSeriesStore = kernel.services.require("timeseries")
+    run_id = (await storage.create_run(work_dir="/work/user1/case_a")).id
     await ts.upsert_run_solver_state(
         RunSolverState(
-            run_id=7,
+            run_id=run_id,
             solver="converge",
             work_dir="/work/user1/case_a",
             output_dir="/work/user1/case_a/outputs_restart1",
@@ -174,14 +185,14 @@ async def test_run_solver_state_and_plugin_reload(db_path: str) -> None:
             warning_count=3,
         )
     )
-    await ts.append_samples(7, {SeriesKey("thermo.out", "Pressure"): ([0.03], [1.2])})
+    await ts.append_samples(run_id, {SeriesKey("thermo.out", "Pressure"): ([0.03], [1.2])})
 
     await kernel.reload("storage-sqlite")
     assert kernel.state("timeseries-sqlite") is PluginState.ACTIVE
     ts2: TimeSeriesStore = kernel.services.require("timeseries")
-    state = await ts2.get_run_solver_state(7)
+    state = await ts2.get_run_solver_state(run_id)
     assert state is not None
     assert state.solver_state is SolverState.RUNNING
     assert state.progress == 0.25
-    assert len(await ts2.list_series(7)) == 1
+    assert len(await ts2.list_series(run_id)) == 1
     await kernel.stop()

@@ -9,18 +9,15 @@ Plan: [roadmap.md#m2](roadmap.md#m2--incremental-readers-and-parsers).
 
 ### Implemented in M2
 
+- `contracts/storage.py` & `storage_sqlite`: added `create_run` (`origin='manual'`), `run(run_id)`, `RunRecord`.
 - `contracts/timeseries.py` (`timeseries` v1): `FileCursor`, `SeriesKey`, `SeriesMeta`, `SeriesPoints`, `RunSolverState`, `TimeSeriesStore` protocol.
-- `storage_sqlite`: migration `0003_timeseries.sql` (`file_cursors`, `series`, `sample_chunks` with float64 `array('d')` blobs + 16:1 and 256:1 min/max downsampled levels, `run_solver_state`) and `timeseries-sqlite` plugin (`SqliteTimeSeriesStore`) sharing the single SQLite connection.
+- `storage_sqlite`: migration `0003_timeseries.sql` (`file_cursors`, `series`, `sample_chunks` with float64 `array('d')` blobs + 16:1 and 256:1 min/max downsampled levels, `run_solver_state`, with `REFERENCES runs(id) ON DELETE CASCADE`) and `timeseries-sqlite` plugin (`SqliteTimeSeriesStore`) sharing the single SQLite connection.
 - `contracts/solver.py` (`solver.<kind>` v1): `WatchedFile`, `SolverStatusUpdate`, `ParsedChunk`, `Solver` protocol.
 - `readers/`: `IncrementalReader` (chunked `RemoteSession.read_range`, truncation/replacement detection via `size < offset` and 256-byte prefix, partial last line buffering, tail-first auto-backfill with record-aligned seam) + `LocalRemoteSession`.
 - `solver-converge` (`solver.converge`): discovery (`inputs.in`, `logout.txt`, `outputs_*/stream0/*.out`, `*.out`) + pure parsers for multi-doc YAML `inputs.in`, ANSI-stripped `logout.txt`, and generic multi-qualifier `.out` headers.
 - `solver-openfoam` (`solver.openfoam`): discovery (`system/controlDict`, `system/decomposeParDict`, `log.<app>` / `log.out`) + pure parsers (`foamLog` first-residual rule, anchored `^Time =`, pre-`Time` Courant/deltaT block alignment, custom `min/max`, `End`, `FOAM FATAL [IO] ERROR`). `postProcessing/**` deferred until a sample is available.
-- `contracts/ingest.py` (`ingest` v1) and `solver-ingest` plugin: orchestrates `detect_solver`, `sync_run`, background `auto_backfill` tasks (`ctx.task`), M1 event hooks (`monitor.polled` + `storage.jobs()`, plus `run.created` / `job.state_changed` bus handlers), active-run bootstrap on startup, periodic polling, and durable events (`series.updated`, `run.progress`).
-- `cli/ingest.py`: `simman ingest local|status|series` subcommands over `LocalRemoteSession`, wired into `cli/main.py` via `ingest_app`.
-
-### Follow-up after M1+M2 merge
-
-- `0003_timeseries.sql` keeps `run_id INTEGER NOT NULL` without a hard `FOREIGN KEY REFERENCES runs(id)` because `PRAGMA foreign_keys=ON` is active and `contracts/storage.py` (`Storage`) does not yet expose `create_run` / manual-run registration for `simman ingest local` or isolated tests. Once `Storage` supports manual `runs` rows, add the FK (either in `0003` before release or via migration `0004`).
+- `contracts/ingest.py` (`ingest` v1) and `solver-ingest` plugin: orchestrates `detect_solver`, `sync_run`, background `auto_backfill` tasks (`ctx.task`), M1 integration via `monitor.polled` + `storage.jobs()`, active-run bootstrap on startup, periodic polling, and durable events (`series.updated`, `run.progress`).
+- `cli/ingest.py`: `simman ingest local|status|series` subcommands over `LocalRemoteSession` (creating manual runs in `runs` when `--run-id` is omitted), wired into `cli/main.py` via `ingest_app`.
 
 ## Current milestone
 

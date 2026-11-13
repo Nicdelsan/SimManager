@@ -116,4 +116,11 @@ async def test_upsert_job_creates_run_and_keeps_known_fields(db_path: str) -> No
     assert [r.info.job_id for r in await storage.jobs(active=False)] == ["7_1"]
     assert await storage.jobs(active=True) == []
     assert await storage.jobs(cluster_id="other") == []
+
+    manual = await storage.create_run(work_dir="/work/user1/local_case", cluster_id="local")
+    assert manual.id > 0
+    assert manual.origin == "manual"
+    assert manual.job_pk is None
+    assert (await storage.run(manual.id)) == manual
+    assert (await storage.run(99999)) is None
     await storage.close()

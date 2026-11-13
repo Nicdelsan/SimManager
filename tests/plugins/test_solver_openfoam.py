@@ -123,6 +123,7 @@ async def test_openfoam_discover_and_tail_backfill_seam(tmp_path: Path) -> None:
 
     storage = await SqliteStorage.open(str(tmp_path / "of.db"))
     ts = SqliteTimeSeriesStore(storage.connection, storage.write_lock)
+    run_id = (await storage.create_run(work_dir=case.as_posix())).id
     reader = IncrementalReader(
         ReaderConfig(
             chunk_bytes=600,
@@ -132,13 +133,13 @@ async def test_openfoam_discover_and_tail_backfill_seam(tmp_path: Path) -> None:
         )
     )
 
-    res = await reader.sync_file(session, ts, solver, 1, watched[0])
+    res = await reader.sync_file(session, ts, solver, run_id, watched[0])
     assert res.needs_backfill
 
-    prog = await reader.backfill_step(session, ts, solver, 1, watched[0], max_chunks=None)
+    prog = await reader.backfill_step(session, ts, solver, run_id, watched[0], max_chunks=None)
     assert prog.done
 
-    series = {s.name: s for s in await ts.list_series(1)}
+    series = {s.name: s for s in await ts.list_series(run_id)}
     p_pts = await ts.query_series(series["residual.p"].id, max_points=5000)
     co_pts = await ts.query_series(series["courant.max"].id, max_points=5000)
     assert len(p_pts.x) == 60
@@ -160,17 +161,18 @@ async def test_openfoam_real_samples_tail_first_and_backfill_step(tmp_path: Path
 
     storage = await SqliteStorage.open(str(tmp_path / "samples_of.db"))
     ts = SqliteTimeSeriesStore(storage.connection, storage.write_lock)
+    run_id = (await storage.create_run(work_dir=session.root_posix)).id
     reader = IncrementalReader(ReaderConfig(full_read_max_bytes=50 * 1024 * 1024))
 
-    res = await reader.sync_file(session, ts, solver, 1, log_w)
+    res = await reader.sync_file(session, ts, solver, run_id, log_w)
     assert res.needs_backfill
     assert res.points_ingested > 0
 
-    prog = await reader.backfill_step(session, ts, solver, 1, log_w, max_chunks=2)
+    prog = await reader.backfill_step(session, ts, solver, run_id, log_w, max_chunks=2)
     assert prog.bytes_read > 0
     assert prog.points_ingested > 0
 
-    series = {s.name: s for s in await ts.list_series(1)}
+    series = {s.name: s for s in await ts.list_series(run_id)}
     assert "residual.p" in series
     assert "courant.max" in series
     assert "deltaT" in series

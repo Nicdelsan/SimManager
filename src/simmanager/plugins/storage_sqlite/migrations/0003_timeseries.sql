@@ -1,10 +1,8 @@
 -- M2: incremental file cursors, chunked time series (float64 + min/max levels), solver run state.
--- Note: run_id is intentionally not a hard FOREIGN KEY to runs(id) while M1 (0002) is developed
--- in parallel; wire the FK constraint in a follow-up migration after M1+M2 merge.
 
 CREATE TABLE file_cursors (
     id                INTEGER PRIMARY KEY,
-    run_id            INTEGER NOT NULL,
+    run_id            INTEGER NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
     file_path         TEXT    NOT NULL,
     parser_kind       TEXT    NOT NULL,
     file_size         INTEGER NOT NULL DEFAULT 0,
@@ -24,7 +22,7 @@ CREATE INDEX file_cursors_run ON file_cursors (run_id);
 
 CREATE TABLE series (
     id          INTEGER PRIMARY KEY,
-    run_id      INTEGER NOT NULL,
+    run_id      INTEGER NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
     file_path   TEXT    NOT NULL,
     name        TEXT    NOT NULL,
     qualifier   TEXT    NOT NULL DEFAULT '',
@@ -57,7 +55,7 @@ CREATE TABLE sample_chunks (
 CREATE INDEX sample_chunks_lookup ON sample_chunks (series_id, level, x_min, x_max);
 
 CREATE TABLE run_solver_state (
-    run_id        INTEGER PRIMARY KEY,
+    run_id        INTEGER PRIMARY KEY REFERENCES runs(id) ON DELETE CASCADE,
     solver        TEXT    NOT NULL,
     work_dir      TEXT    NOT NULL,
     case_dir      TEXT,

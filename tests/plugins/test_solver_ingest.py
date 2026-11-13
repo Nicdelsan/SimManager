@@ -15,7 +15,7 @@ from simmanager.contracts import timeseries as ts_contract
 from simmanager.contracts import transport as transport_contract
 from simmanager.contracts.clusters import ClusterProfile
 from simmanager.contracts.ingest import IngestService
-from simmanager.contracts.monitor import Monitor
+from simmanager.contracts.monitor import Monitor, PollReport
 from simmanager.contracts.scheduler import JobInfo, JobState
 from simmanager.contracts.storage import Storage
 from simmanager.contracts.timeseries import SolverState, TimeSeriesStore
@@ -92,7 +92,10 @@ async def test_sync_run_converge_and_openfoam_fixtures(tmp_path: Path) -> None:
     storage: Storage = kernel.services.require(storage_contract.SERVICE_KEY)
 
     conv_session = LocalRemoteSession(FIXTURES_ROOT / "converge")
-    res_conv = await ingestor.sync_run(conv_session, run_id=1, work_dir=conv_session.root_posix)
+    r_conv = await storage.create_run(work_dir=conv_session.root_posix)
+    res_conv = await ingestor.sync_run(
+        conv_session, run_id=r_conv.id, work_dir=conv_session.root_posix
+    )
     assert res_conv.solver == "converge"
     assert res_conv.files_synced >= 3
     assert res_conv.points_ingested > 0
@@ -100,19 +103,20 @@ async def test_sync_run_converge_and_openfoam_fixtures(tmp_path: Path) -> None:
     assert res_conv.progress == pytest.approx(1.0)
 
     of_session = LocalRemoteSession(FIXTURES_ROOT / "openfoam")
-    res_of = await ingestor.sync_run(of_session, run_id=2, work_dir=of_session.root_posix)
+    r_of = await storage.create_run(work_dir=of_session.root_posix)
+    res_of = await ingestor.sync_run(of_session, run_id=r_of.id, work_dir=of_session.root_posix)
     assert res_of.solver == "openfoam"
     assert res_of.points_ingested > 0
     assert res_of.solver_state is SolverState.COMPLETED
     assert res_of.progress == pytest.approx(1.0)
 
-    ev_kinds = {e.kind for e in await storage.events(run_id=1)}
+    ev_kinds = {e.kind for e in await storage.events(run_id=r_conv.id)}
     assert "series.updated" in ev_kinds
     assert "run.progress" in ev_kinds
 
-    series_conv = await ts.list_series(1)
+    series_conv = await ts.list_series(r_conv.id)
     assert any(s.file_path == "thermo.out" for s in series_conv)
-    assert (await ts.get_run_solver_state(2)) is not None
+    assert (await ts.get_run_solver_state(r_of.id)) is not None
     await kernel.stop()
 
 
@@ -148,29 +152,31 @@ async def test_auto_backfill_background_task(tmp_path: Path) -> None:
         SolverIngestPlugin,
     )
     ingestor: IngestService = kernel.services.require(ingest_contract.SERVICE_KEY)
+    storage: Storage = kernel.services.require(storage_contract.SERVICE_KEY)
     ts: TimeSeriesStore = kernel.services.require(ts_contract.SERVICE_KEY)
 
     backfill_events: list[dict[str, Any]] = []
     kernel.bus.on("backfill.progress", lambda p: backfill_events.append(dict(p)))
 
     session = LocalRemoteSession(case_dir, virtual_root="/case")
-    res = await ingestor.sync_run(session, run_id=5, work_dir="/case")
+    run_id = (await storage.create_run(work_dir="/case")).id
+    res = await ingestor.sync_run(session, run_id=run_id, work_dir="/case")
     assert res.backfill_pending == 1
 
     async def _is_backfill_done() -> bool:
-        cursors = await ts.list_cursors(5)
+        cursors = await ts.list_cursors(run_id)
         return bool(cursors) and not any(c.needs_backfill for c in cursors)
 
     await _wait_until(_is_backfill_done)
     assert any(e["done"] is True for e in backfill_events)
 
-    series = await ts.list_series(5)
+    series = await ts.list_series(run_id)
     temp = next(s for s in series if s.name == "Mean_Temp")
     assert temp.point_count == 45_000
     await kernel.stop()
 
 
-async def test_m1_bus_events_and_transport_resilience(tmp_path: Path) -> None:
+async def test_monitor_polled_resilience_bootstrap_and_durable_state(tmp_path: Path) -> None:
     conv_session = LocalRemoteSession(
         FIXTURES_ROOT / "converge", cluster_id="c1", virtual_root="/case"
     )
@@ -198,41 +204,56 @@ async def test_m1_bus_events_and_transport_resilience(tmp_path: Path) -> None:
         FakeTransportPlugin,
         SolverIngestPlugin,
     )
+    storage: Storage = kernel.services.require(storage_contract.SERVICE_KEY)
     ts: TimeSeriesStore = kernel.services.require(ts_contract.SERVICE_KEY)
 
-    # First run.created fails transport temporarily -> plugin must stay ACTIVE
+    # Create job+run in M1 tables, simulate temporary transport error on first monitor.polled
+    up = await storage.upsert_job(
+        "c1",
+        JobInfo(
+            job_id="55",
+            name="conv",
+            state=JobState.RUNNING,
+            raw_state="RUNNING",
+            work_dir="/case",
+        ),
+        active=True,
+    )
+    run_id = up.record.run_id
+    assert run_id is not None
+
     fake_transport.fail_next = ClusterUnavailableError(
         "c1", ConnectionState.BACKOFF, "temporary disconnect"
     )
     await kernel.bus.emit(
-        "run.created",
-        {"run_id": 10, "cluster_id": "c1", "work_dir": "/case"},
-    )
-    await asyncio.sleep(0.05)
-    assert kernel.state("solver-ingest") is PluginState.ACTIVE
-
-    # Poll loop / subsequent job.state_changed recovers cleanly and reaches terminal removal
-    await kernel.bus.emit(
-        "job.state_changed",
-        {"run_id": 10, "cluster_id": "c1", "work_dir": "/case", "to": "completed"},
+        monitor_contract.POLLED_EVENT,
+        PollReport(cluster_id="c1", ok=True, active_jobs=1, discovered=1),
     )
 
+    # Poll loop recovers cleanly and populates timeseries + solver state
     async def _synced() -> bool:
-        return (await ts.get_run_solver_state(10)) is not None
+        return (await ts.get_run_solver_state(run_id)) is not None
 
     await _wait_until(_synced)
     assert kernel.state("solver-ingest") is PluginState.ACTIVE
-    series_before = await ts.list_series(10)
+    series_before = await ts.list_series(run_id)
     assert len(series_before) > 0
-
-    # Unloading solver-ingest preserves durable timeseries state
     await kernel.stop()
 
+    # Restarting kernel preserves durable state AND bootstraps the still-active run from DB
     kernel2 = Kernel({"storage-sqlite": {"path": db_path}})
-    await kernel2.add(SqliteStoragePlugin, SqliteTimeSeriesPlugin)
+    await kernel2.add(
+        SqliteStoragePlugin,
+        SqliteTimeSeriesPlugin,
+        ConvergeSolverPlugin,
+        SolverIngestPlugin,
+    )
+    await asyncio.sleep(0.05)
+    ingestor2: Any = kernel2.services.require(ingest_contract.SERVICE_KEY)
+    assert run_id in ingestor2._tracked
     ts2: TimeSeriesStore = kernel2.services.require(ts_contract.SERVICE_KEY)
-    assert (await ts2.get_run_solver_state(10)) is not None
-    assert len(await ts2.list_series(10)) == len(series_before)
+    assert (await ts2.get_run_solver_state(run_id)) is not None
+    assert len(await ts2.list_series(run_id)) == len(series_before)
     await kernel2.stop()
 
 
