@@ -11,3 +11,5 @@ update the status and the code.
 | A4 | CONVERGE `.out` header layout (names / units / optional qualifier rows / `#`) is the same for all `.out` files. | M2 parser | More `.out` samples (species_*, dynamic, numerics, mass_balance) | partially verified (thermo, area_avg_regions_flow) |
 | A5 | OpenFOAM fatal errors appear as `FOAM FATAL ERROR` / `FOAM FATAL IO ERROR` in the solver log. | M2 parser | A failing log sample | open |
 | A6 | Cluster timestamps are local time of a single configurable zone per cluster. | scheduler-slurm | — (configurable) | accepted |
+| A100 | Crank-angle CONVERGE runs print the unit inside parentheses in `logout.txt` (e.g. `(CA)` / `(deg)` instead of `(sec)`). | solver-converge | A crank-angle `logout.txt` sample | open |
+| A101 | CONVERGE fatal errors in `logout.txt` start with `Fatal Error`, `FATAL ERROR`, or `ERROR:`. | solver-converge | A failing CONVERGE `logout.txt` sample | open |

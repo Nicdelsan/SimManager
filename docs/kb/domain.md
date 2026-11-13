@@ -81,7 +81,8 @@ YAML (`version: 4`, `---`, `#` comments). Progress-relevant keys under `simulati
 ```
 
 - Header: version row, `# column` index row, names row, units row `(...)`, zero or more
-  qualifier rows (e.g. `area_avg_regions_flow.out`: `(none)` / `Regions_1_to_3`), then `#`.
+  qualifier rows (e.g. `area_avg_regions_flow.out`: `(none)` / `Regions_1_to_3` / `bound_id_11`),
+  and an optional `#` separator line (`thermo.out` has `#`; `area_avg_regions_flow.out` jumps directly to data).
 - Names repeat across qualifiers → column identity = `(name, qualifier)`.
 - Fixed-width, whitespace-separated, `e` notation; some columns are integers (`Cycle_Number`).
 - Files are large (tens to hundreds of MB): incremental reading only.
@@ -91,7 +92,7 @@ YAML (`version: 4`, `---`, `#` comments). Progress-relevant keys under `simulati
 
 - May contain ANSI color codes (cluster-dependent) → strip `\x1b\[[0-9;]*m`.
 - Progress line: `[ 15.98%] ncyc   109946;  Time    2.639254072e-02 (sec); dt=    5.216794175e-08 (dt_grow)`.
-- Normal end: `normal termination`, followed by timing summary `Total Simulation Run Time: <s> seconds`.
+- Normal end: `normal termination`, followed by timing summary `Program used <s> seconds.` (or `Total Simulation Run Time: <s> seconds`).
 - User stop: `Found file STOP. Finishing job.`
 - Recoveries: `recovering .... because transport equations did not converge ...` (frequent; candidate warning counter, not an error).
 - Input files are echoed as `Found the file '<name>' at '<path>'` — gives the case dir.

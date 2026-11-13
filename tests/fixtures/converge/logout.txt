@@ -1,0 +1,13 @@
+Successfully checked out 1 superbase licenses
+[37mWed Dec 17 18:07:51 2025[0m
+node01[37m
+[35mFound the file 'inputs.in' at '/work/user1/case_a/inputs.in'.[0m
+
+creating pathname /work/user1/case_a/outputs_restart1/output 
+
+[  0.43%] ncyc     7685;  Time    2.017333000e-02 (sec); dt=    1.500000000e-08 (dt_grow) 
+recovering .... because transport equations did not converge or energy extrapolations
+[  0.43%] ncyc     7686;  Time    2.017334000e-02 (sec); dt=    1.000000000e-08 (dt_recover) 
+[100.00%] ncyc   109946;  Time    6.000000000e-02 (sec); dt=    5.000000000e-08 (dt_grow) 
+normal termination
+Program used 120.500000 seconds.

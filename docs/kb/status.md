@@ -13,6 +13,7 @@ Plan: [roadmap.md#m2](roadmap.md#m2--incremental-readers-and-parsers).
 - `storage_sqlite`: migration `0003_timeseries.sql` (`file_cursors`, `series`, `sample_chunks` with float64 `array('d')` blobs + 16:1 and 256:1 min/max downsampled levels, `run_solver_state`) and `timeseries-sqlite` plugin (`SqliteTimeSeriesStore`) sharing the single SQLite connection.
 - `contracts/solver.py` (`solver.<kind>` v1): `WatchedFile`, `SolverStatusUpdate`, `ParsedChunk`, `Solver` protocol.
 - `readers/`: `IncrementalReader` (chunked `RemoteSession.read_range`, truncation/replacement detection via `size < offset` and 256-byte prefix, partial last line buffering, tail-first auto-backfill with record-aligned seam) + `LocalRemoteSession`.
+- `solver-converge` (`solver.converge`): discovery (`inputs.in`, `logout.txt`, `outputs_*/stream0/*.out`, `*.out`) + pure parsers for multi-doc YAML `inputs.in`, ANSI-stripped `logout.txt`, and generic multi-qualifier `.out` headers.
 
 ### To wire at M1+M2 merge
 
