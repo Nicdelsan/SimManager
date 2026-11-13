@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import json
 import os
 import ssl
 from collections.abc import AsyncIterator, Sequence
@@ -93,3 +94,31 @@ async def ws_handshake_status(
         return int(status_line.split()[1])
     finally:
         writer.close()
+
+
+def ws_connect(web: Web) -> Any:
+    """Authenticated dashboard WebSocket (async context manager)."""
+    from websockets.asyncio.client import connect
+
+    return connect(
+        f"ws://127.0.0.1:{web.port}/ws",
+        origin=web.origin,
+        additional_headers={"Cookie": web.cookie},
+        open_timeout=5,
+    )
+
+
+async def recv_json(ws: Any, timeout_s: float = 5.0) -> dict[str, Any]:
+    return json.loads(await asyncio.wait_for(ws.recv(), timeout_s))  # type: ignore[no-any-return]
+
+
+async def recv_type(ws: Any, type_: str, timeout_s: float = 5.0) -> dict[str, Any]:
+    """Next message of `type_`, skipping others."""
+    deadline = asyncio.get_running_loop().time() + timeout_s
+    while True:
+        remaining = deadline - asyncio.get_running_loop().time()
+        if remaining <= 0:
+            raise AssertionError(f"no {type_!r} message within {timeout_s} s")
+        message = await recv_json(ws, remaining)
+        if message.get("type") == type_:
+            return message

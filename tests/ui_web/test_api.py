@@ -35,7 +35,9 @@ class FakeTransport:
         self.session_calls: list[str] = []
 
     def clusters(self) -> Mapping[str, ClusterProfile]:
-        return {cid: ClusterProfile(host=f"{cid}.example.org", user="user1") for cid in self.sessions}
+        return {
+            cid: ClusterProfile(host=f"{cid}.example.org", user="user1") for cid in self.sessions
+        }
 
     async def session(self, cluster_id: str) -> RemoteSession:
         self.session_calls.append(cluster_id)

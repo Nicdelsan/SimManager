@@ -49,7 +49,7 @@ class Client:
 
     async def _write_loop(self) -> None:
         while (message := await self._queue.get()) is not None:
-            await self.ws.send_text(json.dumps(message, separators=(",", ":")))
+            await self.ws.send_text(json.dumps(message, separators=(",", ":"), default=str))
         with contextlib.suppress(Exception):
             await self.ws.close(code=1008)
 
@@ -65,6 +65,9 @@ class Hub:
     # ------------------------------------------------------------ registration
     def client_count(self) -> int:
         return len(self._clients)
+
+    def clients(self) -> list[Client]:
+        return list(self._clients)
 
     def on_client_message(self, type_: str, handler: ClientHandler) -> Callable[[], None]:
         self._handlers.setdefault(type_, []).append(handler)

@@ -67,6 +67,7 @@ M3 (in progress):
   login URL and opens the browser. Page content: placeholder until step 7.
 - REST API under `/api` (see architecture.md, `ui-web` row); ETA = linear rate of the
   progress series over the last hour of wall time.
+- Live WebSocket: subscribed plots get only new points, ≤ 1 update/s per run.
 
 ## Not yet implemented
 
@@ -86,6 +87,9 @@ the new OpenSSH format would need `bcrypt`: not added, the user has no passphras
 
 ## Changelog
 
+- 2026-11-13 — M3 step 5: live WebSocket traffic (durable events, cluster state, polls,
+  progress, throttled backfill progress, per-run throttled plot points with reload on
+  big jumps); `ui-web.live_interval_s` (default 1 s).
 - 2026-11-13 — M3 step 4: REST API (clusters with last state/poll, jobs, runs with job,
   solver state and ETA, run detail with files/backfill and series, downsampled points,
   events, reconnect, manual run registration); ETA from the progress series.

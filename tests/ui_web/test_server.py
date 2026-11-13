@@ -11,26 +11,12 @@ import textwrap
 from pathlib import Path
 
 import pytest
-from websockets.asyncio.client import connect
 
 from simmanager.contracts.ui import Message
 from simmanager.kernel import Kernel, PluginState
 from simmanager.plugins.ui_web import UiWebPlugin
 
-from .webclient import Web, running_web
-
-
-def _ws(web: Web):  # type: ignore[no-untyped-def]
-    return connect(
-        f"ws://127.0.0.1:{web.port}/ws",
-        origin=web.origin,  # type: ignore[arg-type]
-        additional_headers={"Cookie": web.cookie},
-        open_timeout=5,
-    )
-
-
-async def _recv(ws) -> dict:  # type: ignore[no-untyped-def,type-arg]
-    return json.loads(await asyncio.wait_for(ws.recv(), 5))  # type: ignore[no-any-return]
+from .webclient import recv_json, running_web, ws_connect
 
 
 async def test_hello_broadcast_and_messages() -> None:
@@ -45,12 +31,12 @@ async def test_hello_broadcast_and_messages() -> None:
 
         web.server.on_message("ping", on_ping)
         web.server.on_client_connected(on_connect)
-        async with _ws(web) as ws:
-            assert (await _recv(ws))["type"] == "hello"
-            assert await _recv(ws) == {"type": "pending", "n": 1}
+        async with ws_connect(web) as ws:
+            assert (await recv_json(ws))["type"] == "hello"
+            assert await recv_json(ws) == {"type": "pending", "n": 1}
             assert web.server.client_count() == 1
             await web.server.broadcast({"type": "news", "x": [1.5]})
-            assert await _recv(ws) == {"type": "news", "x": [1.5]}
+            assert await recv_json(ws) == {"type": "news", "x": [1.5]}
             await ws.send("not json")
             await ws.send(json.dumps({"type": "ping", "v": 2}))
             for _ in range(100):
@@ -68,8 +54,8 @@ async def test_hello_broadcast_and_messages() -> None:
 async def test_stop_closes_port_and_open_websockets() -> None:
     async with running_web() as web:
         port = web.port
-        ws = await _ws(web)
-        await _recv(ws)
+        ws = await ws_connect(web)
+        await recv_json(ws)
         await web.kernel.stop()
         await asyncio.wait_for(ws.wait_closed(), 10)
     with pytest.raises(OSError):
