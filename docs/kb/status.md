@@ -1,11 +1,13 @@
 # Status
 
-_Last updated: 2026-11-13_
+_Last updated: 2026-11-17_
 
 ## Current milestone
 
-**Next: M6 — snapshots, rules, notifications** (another agent on branch `m6-snapshots`,
-migration `0005`, ADR `0006`).
+- M6 — snapshots, rules, notifications: backend + CLI done on branch `m6-snapshots` and
+  merged into `main` on 2026-11-17 (migration `0005`,
+  [ADR 0006](../adr/0006-sqlite-content-addressed-snapshots.md),
+  [roadmap.md#m6](roadmap.md#m6--snapshots-rules-notifications)).
 
 - M4 — integrated SSH terminal: done 2026-11-13 on `main`
   ([roadmap.md#m4](roadmap.md#m4--integrated-ssh-terminal),
@@ -119,9 +121,27 @@ M4 (2026-11-13):
   Origin/Host/cookie, re-attach, auth prompt then shell, channel limit with the monitor
   working, cancel job, no terminal content in logs/events). Headless Chrome smoke test.
 
+M6 backend + CLI (2026-11-17, merged into `main`):
+- Migration `0005_snapshots_rules.sql` and ADR 0006 (`snapshot_blobs`, `snapshots`,
+  `snapshot_files`, `run_notes`, `rule_configs`, `alerts`, `rule_run_state`).
+- Contracts `contracts/snapshot.py`, `contracts/rules.py`, `contracts/notifier.py` and
+  SQLite stores `snapshot-sqlite` and `rules-sqlite`.
+- `snapshot` plugin: auto-capture on `storage.event_appended` + `monitor.polled`,
+  `queued -> running` effective replacement, late-file flagging (A300), background oversize
+  SHA-256 + hash reuse, semantic YAML/OpenFOAM diffs, run notes (`run.note_changed`).
+- `rules` plugin: hierarchical config merge (`global -> campaign -> case`), incremental
+  series evaluation (`courant_high`, `residual_high` with warmup + restart reset,
+  `monitor_range`), `nan_inf`, `solver_error`, `job_failed`, adaptive `stall`
+  (backfill/disconnect-safe), and restart deduplication.
+- `notifier` router + `notifier-desktop` (`desktop-notifier`): immediate-first + coalescing
+  batching, quiet hours, rate limit, secret-free event formatting, and silent fallback.
+- CLI (`cli/snapshot.py`, `cli/rules.py`): `simman snapshot {list,show,diff,take}`,
+  `simman run note`, `simman rules {show,set,unset}`, `simman alerts {list,ack}`, and
+  `simman notify test`.
+
 ## Not yet implemented
 
-Snapshots, notifications (M6). PBS is on standby (user decision 2026-11-13). Passphrase-protected keys in
+PBS is on standby (user decision 2026-11-13). Passphrase-protected keys in
 the new OpenSSH format would need `bcrypt`: not added, the user has no passphrases.
 
 ## Known limitations
@@ -139,6 +159,9 @@ the new OpenSSH format would need `bcrypt`: not added, the user has no passphras
 
 ## Changelog
 
+- 2026-11-17 — Merged `m6-snapshots` (M6 snapshots, rules, desktop notifications, migration
+  `0005`, ADR 0006, CLI commands) into `main`; resolved conflicts in KB and aligned status,
+  roadmap, and architecture.
 - 2026-11-13 — M4 done: ADR 0007 (why the terminal does not break the read-only rule),
   README terminal section, roadmap/architecture updated.
 - 2026-11-13 — M4 step 6: "Cancel job…" in the run detail and in the terminal toolbar.

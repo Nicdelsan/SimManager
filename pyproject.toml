@@ -8,6 +8,7 @@ license = { text = "Proprietary" }
 dependencies = [
     "aiosqlite>=0.20",
     "asyncssh>=2.24.1",
+    "desktop-notifier>=6.0",
     "fastapi>=0.162.6",
     "openpyxl>=3.1.5",
     "pydantic>=2.7",

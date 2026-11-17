@@ -5,8 +5,9 @@ Local monitor for CFD simulations (CONVERGE CFD, OpenFOAM) running on remote HPC
 files and shows progress, state and notifications. It never builds setups, edits remote files
 or submits jobs on its own.
 
-> Status: **M3 — web UI** (on top of SSH/SLURM discovery, solver parsers and Excel
-> campaigns). Details in `docs/kb/status.md`.
+> Status: **M4 — integrated SSH terminal** and **M6 — snapshots, rules, notifications**
+> (on top of SSH/SLURM discovery, solver parsers, web UI and Excel campaigns). Details in
+> `docs/kb/status.md`.
 
 ## Install
 
@@ -88,6 +89,17 @@ clusters:
 uv run simman campaign import cases.xlsx   # Excel sheet of cases -> campaign
 uv run simman campaign show <name>
 uv run simman campaign export <name>       # copy of the sheet with SM_* state columns
+```
+
+### Snapshots, rules and notifications
+
+```powershell
+uv run simman snapshot list <run_id>       # input snapshots captured for a run
+uv run simman snapshot diff <run_a> <run_b> # text + semantic CONVERGE/OpenFOAM input diff
+uv run simman run note <run_id> "..."      # attach or view a note on a run
+uv run simman rules show                   # effective detection rules (global/campaign/case)
+uv run simman alerts list                  # open alerts (Courant, residuals, NaN, stall, ...)
+uv run simman notify test                  # send a test desktop notification
 ```
 
 ### Configuration

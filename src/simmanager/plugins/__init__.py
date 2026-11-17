@@ -7,13 +7,18 @@ from simmanager.kernel import Plugin
 from .campaign_excel import CampaignExcelPlugin
 from .example import ExampleClockPlugin, ExampleTickerPlugin
 from .monitor import MonitorPlugin
+from .notifier import DesktopNotifierPlugin, NotifierRouterPlugin
 from .prompter_cli import CliPrompterPlugin
+from .rules import RulesPlugin
 from .scheduler_slurm import SlurmSchedulerPlugin
+from .snapshot import SnapshotPlugin
 from .solver_converge import ConvergeSolverPlugin
 from .solver_ingest import SolverIngestPlugin
 from .solver_openfoam import OpenFoamSolverPlugin
 from .storage_sqlite import (
     SqliteCampaignPlugin,
+    SqliteRulePlugin,
+    SqliteSnapshotPlugin,
     SqliteStoragePlugin,
     SqliteTimeSeriesPlugin,
 )
@@ -25,11 +30,17 @@ BUILTIN_PLUGINS: tuple[type[Plugin], ...] = (
     SqliteStoragePlugin,
     SqliteTimeSeriesPlugin,
     SqliteCampaignPlugin,
+    SqliteSnapshotPlugin,
+    SqliteRulePlugin,
     CampaignExcelPlugin,
     CliPrompterPlugin,
     SshTransportPlugin,
     SlurmSchedulerPlugin,
     MonitorPlugin,
+    SnapshotPlugin,
+    RulesPlugin,
+    DesktopNotifierPlugin,
+    NotifierRouterPlugin,
     ConvergeSolverPlugin,
     OpenFoamSolverPlugin,
     SolverIngestPlugin,

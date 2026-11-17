@@ -15,5 +15,6 @@ update the status and the code.
 | A100 | Crank-angle CONVERGE runs print the unit inside parentheses in `logout.txt` (e.g. `(CA)` / `(deg)` instead of `(sec)`). | solver-converge | A crank-angle `logout.txt` sample | open |
 | A101 | CONVERGE fatal errors in `logout.txt` start with `Fatal Error`, `FATAL ERROR`, or `ERROR:`. | solver-converge | A failing CONVERGE `logout.txt` sample | open |
 | A200 | A failed `SolverState` or failed scheduler job combined with `solver.nan_detected` or divergence keywords in `error_message` indicates `diverged` rather than generic `failed`. | campaign-excel | A diverging CONVERGE/OpenFOAM run sample | open |
+| A300 | Remote SFTP `mtime` and cluster scheduler `StartTime` share NTP sync within 1 second (`mtime > start_time + 1s` flags a file as modified after launch). | snapshot | Test on a running job on all clusters | open |
 | A400 | The login shell on the clusters is POSIX (bash/zsh): terminals opened in a folder run `cd -- <dir> ... ; exec "${SHELL:-/bin/sh}" -l`. | transport-ssh (`pty.py`) | Open a terminal in a run folder on each cluster | open (user to confirm the shells) |
 | A401 | sshd `MaxSessions` is 10 (OpenSSH default) on the clusters: 6 monitor channels + 1 SFTP + 3 terminals fit. | transport-ssh | Open 3 terminals while the monitor polls; or `sshd -T` if readable | open |

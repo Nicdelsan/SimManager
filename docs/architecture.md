@@ -70,6 +70,9 @@ Consumers import only these modules, never plugin implementations. Each has a
 | `ui.py` | `ui.web` | M3 | Local web UI as seen by plugins: `base_url`, `client_count`, `broadcast`, `on_message`, `on_client_connected` (shared dashboard WebSocket; per-session channels such as the M4 terminal will be an additive extension). |
 | `terminal.py` | `terminal` | M4 | Interactive shells owned by the user: `open(TerminalRequest)` (connects/authenticates in background), `sessions`, `get`, `attach` → `TerminalAttachment` (`replay`, `recv` bytes / `TerminalInfo` / None, `write`, `resize`, `detach`; one attachment per session, a new one takes over), `close`, `tmux_sessions`. `TerminalState`, `TerminalError`. Bus event `terminal.state`; durable `terminal.opened` / `terminal.closed` (metadata only). |
 | `campaign.py` | `campaign`, `campaign.manager` | M5 | `CampaignStore` (projects, campaigns, cases, run links, exclusions, ambiguities) and `CampaignService` (Excel preview/import/export, run matching, computed states, durable events). |
+| `snapshot.py` | `snapshot`, `snapshot.manager` | M6 | `SnapshotStore` (content-addressed SQLite blobs, manifests, run notes) and `SnapshotService` (input capture, oversize background hashing, textual & semantic diffs). |
+| `rules.py` | `rules`, `rules.manager` | M6 | `RuleStore` (layered rule configs, open/cleared alerts, incremental run state) and `RuleEngine` (hysteresis evaluation, adaptive stall, acknowledgment). |
+| `notifier.py` | `notifier.router`, `notifier.<kind>` | M6 | `NotifierProvider` (`notifier.desktop`, …) and `NotificationService` (routing, immediate-first batching, quiet hours, rate limit). |
 
 ## Storage (`plugins/storage_sqlite`)
 
@@ -86,6 +89,7 @@ SQLite in WAL mode via `aiosqlite`, hand-written SQL, numbered migrations in
 | `sample_chunks` | M2 | Dense float64 `array('d')` chunks (`level=0`) and 16:1 / 256:1 min/max pyramids (`level=1, 2`). |
 | `run_solver_state` | M2 | Latest solver state, progress, times, `ncyc`, warnings and case/output dirs per `run_id` (`REFERENCES runs(id) ON DELETE CASCADE`). |
 | `projects`, `campaigns`, `cases`, `case_runs`, `case_run_exclusions`, `case_match_ambiguities` | M5 | Project → Campaign (`work_root`, `naming_regex`) → Case (`parent_case_id`, `manual_state`, `computed_state`, `params_json`) → Run links (manual lock, exclusions, unresolved ambiguities). |
+| `snapshot_blobs`, `snapshots`, `snapshot_files`, `run_notes`, `rule_configs`, `alerts`, `rule_run_state` | M6 | Content-addressed input snapshots (ADR 0006), mutable run notes, layered detection rules, deduplicated alerts, and incremental evaluation/stall state. |
 
 ## M1 plugins
 
@@ -115,6 +119,20 @@ the UI can stream the log live).
 Progress is stored as a timeseries (`ingest.PROGRESS_SERIES`: x = wall time, y = 0..1);
 the solver state row is written last in a sync and acts as its commit marker.
 
+## M6 plugins
+
+| Plugin | Provides | Injects | Notes |
+|---|---|---|---|
+| `snapshot-sqlite` | `snapshot` | `storage` | Content-addressed blob + file manifest store (`snapshot_blobs`, `snapshots`, `snapshot_files`, `run_notes`), sharing the SQLite connection and `write_lock`. |
+| `rules-sqlite` | `rules` | `storage` | Layered rule configurations (`rule_configs`), deduplicated alerts (`alerts`), and per-run incremental evaluation/stall state (`rule_run_state`). |
+| `snapshot` | `snapshot.manager` | `storage`, `snapshot` | Automatic input capture on `storage.event_appended` (`job.discovered`, `run.created`, `job.state_changed` → `running`) and `monitor.polled` fallback (looks up `transport` and `campaign` at runtime); background SHA-256 hashing up to 100 MiB; oversize hash reuse; semantic CONVERGE YAML + OpenFOAM dict diffs; mutable `run_notes`. |
+| `rules` | `rules.manager` | `storage`, `timeseries`, `rules` | Hierarchical rule merge (`global → campaign → case`, optional `campaign` service looked up at runtime), incremental series evaluation (`courant_high`, `residual_high` with warmup + restart reset, `monitor_range`), `nan_inf`, `solver_error`, `job_failed`, and adaptive `stall` detection. |
+| `notifier-desktop` | `notifier.desktop` | — | Native Windows/Linux desktop toasts via `desktop-notifier` with silent fallback + log warning when headless/unavailable. |
+| `notifier` | `notifier.router` | `storage` | Routes alerts and notable events to registered `notifier.*` providers with immediate-first delivery, batching window coalescing, quiet hours (critical bypass), rate limiting, and secret-free formatting. |
+
+Durable events written in M6: `snapshot.captured`, `run.note_changed`, `alert.raised`,
+`alert.cleared`, `alert.acknowledged`.
+
 ## Milestones
 
 | | Content | Status |
@@ -122,7 +140,7 @@ the solver state row is written last in a sync and acts as its commit marker.
 | M0 | Kernel, config, discovery, SQLite + event log, CLI | done |
 | M1 | Cluster profiles, SSH transport (key/agent/certificate/OTP), SLURM discovery, jobs/runs | done |
 | M2 | Incremental readers, CONVERGE/OpenFOAM parsers, time series | done |
-| M3 | Web UI (FastAPI, htmx, uPlot) | |
+| M3 | Web UI (FastAPI, uPlot, live WebSocket, campaign view) | done |
 | M4 | Integrated SSH terminal (xterm.js, [ADR 0007](adr/0007-integrated-terminal.md)) | done |
-| M5 | Excel campaigns | |
-| M6 | Input snapshots + diff + notes, detection rules, desktop notifications | |
+| M5 | Excel campaigns | done |
+| M6 | Input snapshots + diff + notes, detection rules, desktop notifications | done (backend + CLI) |

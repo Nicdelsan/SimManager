@@ -111,4 +111,19 @@ The terminal is the user acting on the cluster; the monitor stays read-only
 
 ## M6 — Snapshots, rules, notifications
 
-See [project-brief.md](project-brief.md). Detailed plans are written here when each starts.
+Backend + CLI done and merged into `main` 2026-11-17 (branch `m6-snapshots`, migration
+`0005_snapshots_rules.sql`, [ADR 0006](../adr/0006-sqlite-content-addressed-snapshots.md)):
+- Content-addressed SQLite snapshot store (`snapshot-sqlite`) and `snapshot` plugin:
+  auto-capture on `job.discovered`, `run.created`, and `job.state_changed` → `running`
+  (with `monitor.polled` fallback), late-file flagging (A300), background oversize SHA-256
+  hashing up to 100 MiB with hash reuse, textual and semantic CONVERGE YAML / OpenFOAM dict
+  diffs, and mutable `run_notes`.
+- Layered detection rules (`rules-sqlite`, `rules`): `global → campaign → case` merge,
+  incremental series evaluation (`courant_high`, `residual_high` with warmup + restart
+  reset, `monitor_range`), `nan_inf`, `solver_error`, `job_failed`, and adaptive `stall`
+  (backfill/disconnect-safe).
+- Notification router (`notifier`) and desktop toast provider (`notifier-desktop` via
+  `desktop-notifier`): immediate-first delivery, batching coalescing, quiet hours, rate
+  limiting, secret-free formatting, and silent headless fallback.
+- CLI: `simman snapshot {list,show,diff,take}`, `simman run note`,
+  `simman rules {show,set,unset}`, `simman alerts {list,ack}`, `simman notify test`.
