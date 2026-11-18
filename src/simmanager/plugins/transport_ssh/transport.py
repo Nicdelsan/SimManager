@@ -407,7 +407,12 @@ class SshSession:
         return await self._run(argv, timeout_s)
 
     async def run_mutating(
-        self, argv: Sequence[str], *, approval: ActionApproval, timeout_s: float = 30
+        self,
+        argv: Sequence[str],
+        *,
+        approval: ActionApproval,
+        timeout_s: float = 30,
+        input: str | None = None,
     ) -> CommandResult:
         await self._t._event(
             "action.executed",
@@ -420,7 +425,7 @@ class SshSession:
             },
         )
         try:
-            result = await self._run(argv, timeout_s)
+            result = await self._run(argv, timeout_s, input)
         except TransportError as exc:
             await self._t._event(
                 "action.result", self._c, {"action": approval.action, "error": str(exc)}
@@ -438,13 +443,16 @@ class SshSession:
         )
         return result
 
-    async def _run(self, argv: Sequence[str], timeout_s: float) -> CommandResult:
+    async def _run(
+        self, argv: Sequence[str], timeout_s: float, input: str | None = None
+    ) -> CommandResult:
         async with self._c.channels:
             try:
                 proc = await self._conn.run(
                     to_command_line(argv),
                     check=False,
                     timeout=timeout_s,
+                    input=input,
                     encoding="utf-8",
                     errors="replace",
                 )

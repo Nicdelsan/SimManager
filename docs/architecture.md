@@ -61,7 +61,7 @@ Consumers import only these modules, never plugin implementations. Each has a
 | `storage.py` | `storage` | M0 | Append-only event log (`append_event`, `events`, `latest_events`); jobs/runs (`upsert_job`, `jobs`, `create_run`, `run`, `JobRecord`, `JobUpsert`, `RunRecord`); since M3 `runs`, `job_for_run` and bus event `storage.event_appended` (every durable event, live). |
 | `monitor.py` | `monitor` | M1 | `Monitor.poll/poll_all` → `PollReport`; bus event `monitor.polled`. |
 | `clusters.py` | — (data) | M1 | `ClusterProfile` / `ClustersFile` (clusters.yaml), `PollConfig`. |
-| `transport.py` | `transport` | M1 | `Transport.session/state/reset/clusters`; `RemoteSession.run_readonly/run_mutating/stat/listdir/read_range`, `open_pty` (M4, `PtyChannel`, `TmuxSpec`); `ConnectionState`; errors `TransportError`, `ClusterUnavailableError`, `CommandNotAllowedError`, `TerminalLimitError`, `RemoteDirectoryMissingError`; bus event `transport.state`. |
+| `transport.py` | `transport` | M1 | `Transport.session/state/reset/clusters`; `RemoteSession.run_readonly/run_mutating` (since 2026-11-18 `input=` for stdin, never logged)`/stat/listdir/read_range`, `open_pty` (M4, `PtyChannel`, `TmuxSpec`); `ConnectionState`; errors `TransportError`, `ClusterUnavailableError`, `CommandNotAllowedError`, `TerminalLimitError`, `RemoteDirectoryMissingError`; bus event `transport.state`. |
 | `auth.py` | `auth.prompter` | M1 | `AuthPrompter.ask(AuthRequest)` / `confirm`: passwords, passphrases, OTP, yes/no. |
 | `scheduler.py` | `scheduler.<kind>` | M1 | `JobState`, `JobInfo`, `Scheduler.list_active/final_states/cancel_argv` (stateless; receives the `RemoteSession`). |
 | `timeseries.py` | `timeseries` | M2 | `TimeSeriesStore`, `FileCursor`, `SeriesKey`, `SeriesMeta`, `SeriesPoints`, `RunSolverState` (chunked float64 time series + cursors + solver run state). |
@@ -72,6 +72,7 @@ Consumers import only these modules, never plugin implementations. Each has a
 | `campaign.py` | `campaign`, `campaign.manager` | M5 | `CampaignStore` (projects, campaigns, cases, run links, exclusions, ambiguities) and `CampaignService` (Excel preview/import/export, run matching, computed states, durable events). |
 | `snapshot.py` | `snapshot`, `snapshot.manager` | M6 | `SnapshotStore` (content-addressed SQLite blobs, manifests, run notes) and `SnapshotService` (input capture, oversize background hashing, textual & semantic diffs). |
 | `rules.py` | `rules`, `rules.manager` | M6 | `RuleStore` (layered rule configs, open/cleared alerts, incremental run state) and `RuleEngine` (hysteresis evaluation, adaptive stall, acknowledgment). |
+| `display.py` | `display`, `display.manager` | 2026-11-18 | `DisplayStore` (script library with immutable versions, executions, content-addressed images, schedules) and `DisplayService` (`save_script`, `diff`, `start` a script on a run in the background, `executions`, `image_data`, `fetch_skipped`, read-only `browse`/`read_image` below the run folder, `set_schedule`); `ScriptDraft`, `ScriptVersion`, `ExecutionRecord`, `ImageRecord`, `RemoteEntry`, `DisplayError`, `ImageTooLargeError`; bus event `display.updated`. [ADR 0008](adr/0008-display-scripts.md). |
 | `notifier.py` | `notifier.router`, `notifier.<kind>` | M6 | `NotifierProvider` (`notifier.desktop`, …) and `NotificationService` (routing, immediate-first batching, quiet hours, rate limit). |
 
 ## Storage (`plugins/storage_sqlite`)
@@ -90,6 +91,8 @@ SQLite in WAL mode via `aiosqlite`, hand-written SQL, numbered migrations in
 | `run_solver_state` | M2 | Latest solver state, progress, times, `ncyc`, warnings and case/output dirs per `run_id` (`REFERENCES runs(id) ON DELETE CASCADE`). |
 | `projects`, `campaigns`, `cases`, `case_runs`, `case_run_exclusions`, `case_match_ambiguities` | M5 | Project → Campaign (`work_root`, `naming_regex`) → Case (`parent_case_id`, `manual_state`, `computed_state`, `params_json`) → Run links (manual lock, exclusions, unresolved ambiguities). |
 | `snapshot_blobs`, `snapshots`, `snapshot_files`, `run_notes`, `rule_configs`, `alerts`, `rule_run_state` | M6 | Content-addressed input snapshots (ADR 0006), mutable run notes, layered detection rules, deduplicated alerts, and incremental evaluation/stall state. |
+
+| `display_scripts`, `display_script_versions`, `display_executions`, `display_image_blobs`, `display_images`, `display_schedules` | 0006 | Display script library (immutable numbered versions), executions per run, content-addressed image bytes and image rows (skipped ones keep `skipped` + `detail`), auto-refresh schedules ([ADR 0008](adr/0008-display-scripts.md)). |
 
 ## M1 plugins
 
@@ -133,6 +136,17 @@ the solver state row is written last in a sync and acts as its commit marker.
 Durable events written in M6: `snapshot.captured`, `run.note_changed`, `alert.raised`,
 `alert.cleared`, `alert.acknowledged`.
 
+## Display plugins (2026-11-18)
+
+| Plugin | Provides | Injects | Notes |
+|---|---|---|---|
+| `display-sqlite` | `display` | `storage` | SQLite store of migration 0006, sharing the connection and `write_lock`. |
+| `display` | `display.manager` | `storage`, `display` | Web-only. Runs the latest version of a library script on a run folder through `run_mutating` (`display.run_script` approval, script on stdin, `bash -lc` + `timeout`, image listing with `find -newer`, `command.py`), copies the newest images (≤ `max_images_per_execution`, ≤ `max_image_mb`), one execution per run and `max_parallel_per_cluster` per cluster, auto-refresh loop (`schedule_tick_s`) on `RUNNING` jobs, executions left running at stop marked `interrupted`. `transport` and `timeseries` looked up at runtime. |
+
+`ui-web` display endpoints (`display.py`): `GET/POST display/scripts`, `GET display/scripts/{id}/versions`, `GET display/diff?old&new`, `GET runs/{id}/display`, `POST runs/{id}/display/run` (202), `POST runs/{id}/display/schedule`, `GET runs/{id}/display/files?path`, `GET runs/{id}/display/file?path&force` (413 with `{size, limit}` above the limit), `GET display/images/{id}`, `POST display/images/{id}/fetch`; WebSocket message `display.updated`. Frontend `js/views/display.js` (Image / History / Files) and `display_editor.js` (library, editor, versions + diff, Run, auto-refresh).
+
+Durable events written by `display`: `display.executed` `{execution_id, script, version, trigger, status, exit_status, images, error}`, `display.schedule_changed` `{script, script_id, interval_s, enabled, approved_by}`; the transport adds `action.executed` / `action.result` for each execution.
+
 ## Milestones
 
 | | Content | Status |
@@ -144,3 +158,4 @@ Durable events written in M6: `snapshot.captured`, `run.note_changed`, `alert.ra
 | M4 | Integrated SSH terminal (xterm.js, [ADR 0007](adr/0007-integrated-terminal.md)) | done |
 | M5 | Excel campaigns | done |
 | M6 | Input snapshots + diff + notes, detection rules, desktop notifications | done (backend + CLI) |
+| — | Display: user scripts on the cluster, image history, folder browser ([ADR 0008](adr/0008-display-scripts.md)) | done 2026-11-18 |

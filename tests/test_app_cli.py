@@ -29,6 +29,7 @@ def test_defaults_enable_storage_disable_examples() -> None:
         "ui-web",
         "prompter-web",
         "terminal",
+        "display",
     }
     assert setup.config.origins[("plugins", "storage-sqlite", "enabled")] == "defaults"
 

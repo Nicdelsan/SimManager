@@ -1,8 +1,13 @@
 # Status
 
-_Last updated: 2026-11-17_
+_Last updated: 2026-11-18_
 
 ## Current milestone
+
+- Display (2026-11-18, branch `vk/7670-aggiunta-display`): panel in the run detail that runs
+  the user's Python scripts on the cluster and shows the images/GIFs they make
+  ([ADR 0008](../adr/0008-display-scripts.md), migration `0006`). Awaiting the user's check
+  on the real clusters (A402).
 
 - M6 — snapshots, rules, notifications: backend + CLI done on branch `m6-snapshots` and
   merged into `main` on 2026-11-17 (migration `0005`,
@@ -141,6 +146,23 @@ M6 backend + CLI (2026-11-17, merged into `main`):
   `simman run note`, `simman rules {show,set,unset}`, `simman alerts {list,ack}`, and
   `simman notify test`.
 
+Display (2026-11-18):
+- Rule 2 changed with the user: monitoring stays read-only; cluster changes need a UI
+  approval and are logged (ADR 0008).
+- `run_mutating(..., input=)`: stdin to the remote command, never in the event log.
+- Migration `0006_display.sql`, contract `display`, plugins `display-sqlite` and `display`
+  (web-only): versioned script library (immutable versions, SHA-256, notes, diffs),
+  executions on the run folder via login `bash -lc` (setup lines, GNU `timeout`), new
+  images found with `find -newer` and copied into SQLite (≤ 20 per execution, ≤ 20 MB
+  each, "Download anyway" for bigger), image history per run, read-only folder browser,
+  auto-refresh every N min while the job is `RUNNING`, durable `display.executed` /
+  `display.schedule_changed`.
+- Run detail UI: Display panel (Image / History / Files tabs; script editor with library,
+  setup, interpreter, versions + diff, Run, auto-refresh), live via `display.updated`.
+- Tests: command building/parsing/path safety, store versioning, execution, size limits,
+  interruption, browser, schedules, web endpoints, SSH stdin. Checked in headless Chrome
+  with a fake cluster.
+
 ## Not yet implemented
 
 PBS is on standby (user decision 2026-11-13). Passphrase-protected keys in
@@ -152,7 +174,15 @@ the new OpenSSH format would need `bcrypt`: not added, the user has no passphras
   two polls (up to ~330 s when idle) is never seen. Possible later fix: poll faster
   for a while after a submission is noticed, or read the case directory (M2).
 
+- Display image history is never pruned: the database grows with every execution (GIFs
+  up to 20 MB each). Identical images are stored once.
+- Display scripts run on the login node: heavy post-processing there may break cluster
+  rules (`timeout_s` 300 s and one script per cluster at a time limit the impact).
+
 ## Open questions for the user
+
+0. Display: run a script on each cluster (verifies A402: bash, GNU coreutils/find on the
+   login node) and say which `module load` line your Python with matplotlib needs.
 
 1. M4: which login shell runs on each cluster (A400 assumes bash/zsh); and a manual check
    of the terminal on the real clusters (see "Current milestone").
@@ -160,6 +190,11 @@ the new OpenSSH format would need `bcrypt`: not added, the user has no passphras
    A2 on real lines); after a job ends on `hpc-national` the same verifies A7.
 
 ## Changelog
+
+- 2026-11-18 — Display panel (ADR 0008): user Python scripts run on the cluster in the run
+  folder, images/GIFs shown with history and folder browser, versioned script library,
+  auto-refresh; migration `0006`; AGENTS.md rule 2 updated (read-only monitoring, explicit
+  user-approved actions).
 
 - 2026-11-18 — Plot fixes: axes rescale on live points (they stayed frozen on the first
   load); axis ticks, legend and new cursor tooltip use `js/plotfmt.js` (uPlot's default

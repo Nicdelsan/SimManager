@@ -12,6 +12,7 @@ from typing import Any, ClassVar
 from pydantic import BaseModel, ConfigDict, Field
 
 from simmanager.contracts import auth as auth_contract
+from simmanager.contracts import display as display_contract
 from simmanager.contracts import monitor as monitor_contract
 from simmanager.contracts import storage as storage_contract
 from simmanager.contracts import terminal as terminal_contract
@@ -25,6 +26,7 @@ from .actions import build_actions_router
 from .api import Api, ClusterStatusCache, build_router, event_json
 from .app import create_app
 from .campaigns import build_campaign_router
+from .display import build_display_router
 from .hub import Hub
 from .live import Live, RateLimit
 from .prompter import WebPrompter
@@ -95,7 +97,11 @@ class UiWebPlugin(Plugin):
         async def on_terminal_state(info: terminal_contract.TerminalInfo) -> None:
             await hub.broadcast({"type": "terminal.state", **terminal_json(info)})
 
+        async def on_display_updated(payload: dict[str, Any]) -> None:
+            await hub.broadcast({"type": display_contract.UPDATED_EVENT, **payload})
+
         ctx.on(storage_contract.EVENT_APPENDED, on_event_appended)
+        ctx.on(display_contract.UPDATED_EVENT, on_display_updated)
         ctx.on(terminal_contract.STATE_EVENT, on_terminal_state)
         ctx.on("run.progress", on_run_progress)
         ctx.on("backfill.progress", on_backfill)
@@ -110,6 +116,7 @@ class UiWebPlugin(Plugin):
                     build_campaign_router(api),
                     build_terminal_router(terminals),
                     build_actions_router(api),
+                    build_display_router(api),
                 ],
                 [build_terminal_ws_router(terminals)],
             )

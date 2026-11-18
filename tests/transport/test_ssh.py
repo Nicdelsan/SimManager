@@ -117,6 +117,23 @@ async def test_mutating_command_is_logged(server: SshTestServer, h: Harness) -> 
     assert events["action.result"].payload["exit_status"] == 0
 
 
+async def test_mutating_command_input_goes_to_stdin_not_to_the_log(
+    server: SshTestServer, h: Harness
+) -> None:
+    server.commands["bash -lc 'cat > /tmp/x'"] = ("", "", 0)
+    server.read_stdin.add("bash -lc 'cat > /tmp/x'")
+    t = h.transport(server.profile(key_files=[str(server.new_client_key("id_test"))]))
+    session = await t.session(C)
+    approval = ActionApproval(action="display.run_script", approved_by="test")
+    script = "print('secret plot')\n"
+    result = await session.run_mutating(
+        ["bash", "-lc", "cat > /tmp/x"], approval=approval, input=script
+    )
+    assert result.ok and server.stdin["bash -lc 'cat > /tmp/x'"] == script
+    payloads = [str(e.payload) for e in await h.storage.events()]
+    assert not any("secret plot" in p for p in payloads)
+
+
 async def test_encrypted_key_asks_passphrase(server: SshTestServer, h: Harness) -> None:
     key = server.new_client_key("id_enc", passphrase="s3cret")
     assert h.prompter is not None
