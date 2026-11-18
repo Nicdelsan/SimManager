@@ -97,7 +97,9 @@ M3 (2026-11-13):
   login URL and opens the browser.
 - Frontend: dashboard (clusters, active runs, events), runs list + compare, run detail
   (series by file, one plot per unit/x axis, log y for residuals, drag-zoom reloads at
-  higher resolution, progress plot, ETA, backfill status, live points), clusters page
+  higher resolution, progress plot, ETA, backfill status, live points with auto-rescaled
+  axes, cursor tooltip with x/y of the nearest point, scientific notation for tiny or huge
+  values), clusters page
   with Reconnect, password/OTP dialog, manual run registration.
 - Campaigns page: case table (computed vs manual state, parameters, linked runs),
   never-launched cases, runs not associated, manual association/removal.
@@ -159,6 +161,10 @@ the new OpenSSH format would need `bcrypt`: not added, the user has no passphras
 
 ## Changelog
 
+- 2026-11-18 — Plot fixes: axes rescale on live points (they stayed frozen on the first
+  load); axis ticks, legend and new cursor tooltip use `js/plotfmt.js` (uPlot's default
+  formatter showed residuals and small times as "0"); cursor skips join/log gaps so every
+  series shows its nearest value.
 - 2026-11-17 — Merged `m6-snapshots` (M6 snapshots, rules, desktop notifications, migration
   `0005`, ADR 0006, CLI commands) into `main`; resolved conflicts in KB and aligned status,
   roadmap, and architecture.
