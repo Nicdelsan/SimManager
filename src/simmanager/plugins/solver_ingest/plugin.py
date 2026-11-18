@@ -521,6 +521,8 @@ def _merge_run_state(
     warning_count = existing.warning_count if existing else 0
     error_message = existing.error_message if existing else None
     metadata = dict(existing.metadata) if existing else {}
+    explicit_progress = False
+    time_advanced = False
 
     for u in updates:
         if u.case_dir is not None:
@@ -531,6 +533,7 @@ def _merge_run_state(
             solver_state = u.solver_state
         if u.current_time is not None:
             current_time = u.current_time
+            time_advanced = True
         if u.start_time is not None:
             start_time = u.start_time
         if u.end_time is not None:
@@ -539,15 +542,19 @@ def _merge_run_state(
             ncyc = u.ncyc
         if u.progress is not None:
             progress = u.progress
+            explicit_progress = True
         warning_count += u.warning_delta
         if u.error_message is not None:
             error_message = u.error_message
         if u.metadata:
             metadata.update(u.metadata)
 
-    # Compute progress from times if solver didn't provide an explicit percentage
+    # Derive progress from times when this sync brought no explicit percentage:
+    # recompute whenever the solver time moved, not only the first time, otherwise
+    # the stored value freezes after the first sync.
     if (
-        progress is None
+        not explicit_progress
+        and (progress is None or time_advanced)
         and current_time is not None
         and start_time is not None
         and end_time is not None
