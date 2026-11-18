@@ -444,3 +444,46 @@ async def test_manual_runs_are_tracked_and_resumed(tmp_path: Path) -> None:
         assert [r.id for r in await storage.runs(cluster_id="c1")] == [fresh.id, resumed.id]
     finally:
         await kernel.stop()
+
+
+def _time_update(**kwargs: Any) -> Any:
+    from simmanager.contracts.solver import SolverStatusUpdate
+
+    return SolverStatusUpdate(**kwargs)
+
+
+def test_time_derived_progress_advances_across_syncs() -> None:
+    """Progress derived from start/end/current time must follow the solver time.
+
+    Regression: once a first value was stored, later syncs reused it and the
+    progress bar (and progress series) stayed frozen.
+    """
+    from simmanager.plugins.solver_ingest.plugin import _merge_run_state
+
+    first = _merge_run_state(
+        1,
+        "openfoam",
+        "/w",
+        None,
+        [_time_update(start_time=0.0, end_time=10.0), _time_update(current_time=2.0)],
+    )
+    assert first.progress == pytest.approx(0.2)
+
+    second = _merge_run_state(1, "openfoam", "/w", first, [_time_update(current_time=5.0)])
+    assert second.progress == pytest.approx(0.5)
+
+    # A sync with no new solver time keeps the last value.
+    idle = _merge_run_state(1, "openfoam", "/w", second, [])
+    assert idle.progress == pytest.approx(0.5)
+
+
+def test_explicit_progress_is_not_overridden_by_times() -> None:
+    from simmanager.plugins.solver_ingest.plugin import _merge_run_state
+
+    base = _merge_run_state(
+        1, "converge", "/w", None, [_time_update(start_time=0.0, end_time=10.0)]
+    )
+    state = _merge_run_state(
+        1, "converge", "/w", base, [_time_update(current_time=5.0, progress=0.42)]
+    )
+    assert state.progress == pytest.approx(0.42)

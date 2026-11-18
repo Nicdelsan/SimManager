@@ -191,6 +191,10 @@ the new OpenSSH format would need `bcrypt`: not added, the user has no passphras
 
 ## Changelog
 
+- 2026-11-18 — Fix frozen run progress: progress derived from start/end/current solver time
+  (OpenFOAM always, CONVERGE when stdout has no percentage) was computed only once, so the
+  progress bar and the progress-over-time plot stopped after the first sync. Now recomputed
+  whenever the solver time advances; an explicit solver percentage still wins.
 - 2026-11-18 — Display panel (ADR 0008): user Python scripts run on the cluster in the run
   folder, images/GIFs shown with history and folder browser, versioned script library,
   auto-refresh; migration `0006`; AGENTS.md rule 2 updated (read-only monitoring, explicit
