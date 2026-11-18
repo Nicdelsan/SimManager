@@ -8,6 +8,7 @@ import { h, clear, debounce, basename, fmtDuration, fmtRough, fmtTime, pct, prog
 import { eventItem, listen } from "./common.js";
 import { openTerminal } from "../terminal/open.js";
 import { cancelJob } from "../cancel.js";
+import { displayPanel } from "./display.js";
 
 const BACKFILL_RELOAD_MS = 10000;
 
@@ -79,9 +80,11 @@ export async function runView(main, { params }) {
   const listEl = h("div", { class: "series-list panel" });
   const plotsEl = h("div", { class: "grow panel" });
   const eventsEl = h("ul", { class: "events" });
+  const display = detail.cluster_id && detail.work_dir ? displayPanel(runId) : null;
   clear(main,
     headerEl,
     h("div", { class: "row" }, listEl, plotsEl),
+    display ? display.el : null,
     h("div", { class: "panel" }, h("h2", {}, "Events"), eventsEl));
 
   let plots = [];
@@ -206,6 +209,7 @@ export async function runView(main, { params }) {
   return () => {
     offOpen();
     offWs();
+    if (display) display.destroy();
     clearTimeout(backfillTimer);
     ws.send({ type: "unsubscribe", run_id: runId });
     plots.forEach((p) => p.destroy());

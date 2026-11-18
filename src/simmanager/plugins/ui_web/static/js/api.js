@@ -59,4 +59,28 @@ export const api = {
   confirmAction: (actionId) => request("POST", `/actions/${encodeURIComponent(actionId)}/confirm`, {}),
   quickActions: (runId) => request("GET", `/runs/${runId}/quick-actions`),
   tmuxSessions: (cluster) => request("GET", `/clusters/${encodeURIComponent(cluster)}/tmux`),
+  displayScripts: () => request("GET", "/display/scripts"),
+  saveDisplayScript: (body) => request("POST", "/display/scripts", body),
+  displayVersions: (scriptId) => request("GET", `/display/scripts/${scriptId}/versions`),
+  displayDiff: (oldId, newId) => request("GET", `/display/diff${query({ old: oldId, new: newId })}`),
+  runDisplay: (runId) => request("GET", `/runs/${runId}/display`),
+  runDisplayScript: (runId, scriptId) => request("POST", `/runs/${runId}/display/run`, { script_id: scriptId }),
+  scheduleDisplay: (runId, body) => request("POST", `/runs/${runId}/display/schedule`, body),
+  displayFiles: (runId, path) => request("GET", `/runs/${runId}/display/files${query({ path })}`),
+  fetchDisplayImage: (imageId) => request("POST", `/display/images/${imageId}/fetch`, {}),
 };
+
+/** URLs used directly as <img src> (same origin: the session cookie goes along). */
+export const displayUrls = {
+  image: (imageId) => `/api/display/images/${imageId}`,
+  file: (runId, path, force) => `/api/runs/${runId}/display/file${query({ path, force: force ? "true" : "" })}`,
+};
+
+/** Status and detail of a failed GET (e.g. 413 with {size, limit} for a too large image). */
+export async function probe(url) {
+  const response = await fetch(url, { credentials: "same-origin", headers: { Accept: "application/json" } });
+  if (response.ok) return { ok: true, status: response.status };
+  let detail = null;
+  try { detail = (await response.json()).detail; } catch { detail = null; }
+  return { ok: false, status: response.status, detail };
+}

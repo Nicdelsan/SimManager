@@ -8,7 +8,8 @@ contributor. Read this file, then `docs/kb/README.md`, before changing anything.
 A local (Windows + Linux) app that **monitors** CFD simulations (CONVERGE CFD, OpenFOAM)
 running on remote SLURM clusters: it discovers the user's jobs over SSH, follows output
 files incrementally, plots progress, tracks input changes between runs and notifies.
-It **observes**; it never builds setups, edits remote files or submits jobs.
+It **observes**; it never builds setups or submits jobs. On explicit user request it runs
+the user's own display scripts on the cluster (ADR 0008).
 Full scope: `docs/kb/project-brief.md`.
 
 ## Non-negotiable rules
@@ -17,9 +18,10 @@ Full scope: `docs/kb/project-brief.md`.
    accounts, IPs, emails, or other users' jobs. `samples/` (raw, private) is git-ignored;
    tests use anonymized, truncated extracts in `tests/fixtures/`. The pre-commit hook scans
    staged changes; see `docs/kb/conventions.md#privacy`.
-2. **Read-only monitoring.** The monitoring engine runs only allowlisted read-only commands.
-   Anything that changes the cluster (e.g. `scancel`) needs explicit user confirmation in the
-   UI and is written to the event log.
+2. **Read-only monitoring, explicit user-approved actions.** The monitoring engine runs only
+   allowlisted read-only commands. Anything that changes the cluster (`scancel`, running a
+   display script) goes through `run_mutating` with an approval given by the user in the UI
+   (a click, or enabling an auto-refresh) and is written to the event log (ADR 0004, 0008).
 3. **Durable state ≠ plugin state.** Jobs, runs, snapshots, samples live in storage. Unloading
    a plugin never deletes or alters data. Irreversible actions never live in disposers.
 4. **Don't guess file formats.** Derive them from samples; if a sample is missing, ask the

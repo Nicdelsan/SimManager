@@ -159,9 +159,17 @@ class RemoteSession(Protocol):
         ...
 
     async def run_mutating(
-        self, argv: Sequence[str], *, approval: ActionApproval, timeout_s: float = 30
+        self,
+        argv: Sequence[str],
+        *,
+        approval: ActionApproval,
+        timeout_s: float = 30,
+        input: str | None = None,
     ) -> CommandResult:
-        """Run a command that changes the cluster. Logged as action.executed/action.result."""
+        """Run a command that changes the cluster. Logged as action.executed/action.result.
+
+        `input` (since the display feature) is sent to the command's stdin and then closed;
+        it is never written to the event log (e.g. the body of a user script)."""
         ...
 
     async def open_pty(

@@ -5,6 +5,7 @@ from __future__ import annotations
 from simmanager.kernel import Plugin
 
 from .campaign_excel import CampaignExcelPlugin
+from .display import DisplayPlugin
 from .example import ExampleClockPlugin, ExampleTickerPlugin
 from .monitor import MonitorPlugin
 from .notifier import DesktopNotifierPlugin, NotifierRouterPlugin
@@ -17,6 +18,7 @@ from .solver_ingest import SolverIngestPlugin
 from .solver_openfoam import OpenFoamSolverPlugin
 from .storage_sqlite import (
     SqliteCampaignPlugin,
+    SqliteDisplayPlugin,
     SqliteRulePlugin,
     SqliteSnapshotPlugin,
     SqliteStoragePlugin,
@@ -32,6 +34,7 @@ BUILTIN_PLUGINS: tuple[type[Plugin], ...] = (
     SqliteCampaignPlugin,
     SqliteSnapshotPlugin,
     SqliteRulePlugin,
+    SqliteDisplayPlugin,
     CampaignExcelPlugin,
     CliPrompterPlugin,
     SshTransportPlugin,
@@ -47,14 +50,16 @@ BUILTIN_PLUGINS: tuple[type[Plugin], ...] = (
     UiWebPlugin,
     WebPrompterPlugin,
     TerminalPlugin,
+    DisplayPlugin,
     ExampleClockPlugin,
     ExampleTickerPlugin,
 )
 
 DISABLED_BY_DEFAULT: frozenset[str] = frozenset({"example-clock", "example-ticker"})
 
-WEB_ONLY_PLUGINS: frozenset[str] = frozenset({"ui-web", "prompter-web", "terminal"})
-"""Started only by `simman serve`: other commands must not open a web server."""
+WEB_ONLY_PLUGINS: frozenset[str] = frozenset({"ui-web", "prompter-web", "terminal", "display"})
+"""Started only by `simman serve`: other commands must not open a web server (nor run
+display auto-refresh scripts)."""
 
 PROMPTER_PLUGINS: dict[str, str] = {"cli": "prompter-cli", "web": "prompter-web"}
 """Providers of `auth.prompter`; exactly one runs (core config key `prompter`)."""

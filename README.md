@@ -2,8 +2,8 @@
 
 Local monitor for CFD simulations (CONVERGE CFD, OpenFOAM) running on remote HPC clusters
 (SLURM) and locally. SimManager **observes**: it discovers your jobs, follows their output
-files and shows progress, state and notifications. It never builds setups, edits remote files
-or submits jobs on its own.
+files and shows progress, state and notifications. It never builds setups or submits jobs; it
+runs your own plotting scripts on the cluster only when you ask (Display panel).
 
 > Status: **M4 — integrated SSH terminal** and **M6 — snapshots, rules, notifications**
 > (on top of SSH/SLURM discovery, solver parsers, web UI and Excel campaigns). Details in
@@ -47,7 +47,8 @@ uv run simman jobs list --all       # what the monitor recorded
 uv run simman serve                 # keep polling (60 s running / 180 s queued / 300 s idle)
 ```
 
-SimManager only runs read-only commands (`squeue`, `sacct`, `scontrol show`, `ls`, ...).
+The monitor only runs read-only commands (`squeue`, `sacct`, `scontrol show`, `ls`, ...);
+commands that change the cluster (Cancel job, display scripts) need your click and are logged.
 Host keys must already be in `known_hosts` (connect once with `ssh`). When a login
 needs a human (password, OTP, expired SSH certificate) it asks on the terminal and never
 retries a rejected login on its own; passwords are never stored. For short-lived SSH

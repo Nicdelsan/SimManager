@@ -127,3 +127,15 @@ Backend + CLI done and merged into `main` 2026-11-17 (branch `m6-snapshots`, mig
   limiting, secret-free formatting, and silent headless fallback.
 - CLI: `simman snapshot {list,show,diff,take}`, `simman run note`,
   `simman rules {show,set,unset}`, `simman alerts {list,ack}`, `simman notify test`.
+
+## Display — user scripts on the cluster ✅
+
+Done 2026-11-18 ([ADR 0008](../adr/0008-display-scripts.md)). Agreed with the user:
+- scripts run on the login node, in the run folder; the script creates its own output
+  folder; the newest new image is shown, every image of the folder can be browsed;
+- versioned script library (git-like history with dates, diffs);
+- "Run" now and auto-refresh every N minutes while the job runs;
+- image limit 20 MB, configurable (`plugins.display.max_image_mb`), with a per-image
+  "Download anyway".
+Later, if needed: pruning of old images, running scripts as a SLURM job instead of the
+login node, a per-campaign default script.

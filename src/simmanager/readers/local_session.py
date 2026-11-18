@@ -75,7 +75,12 @@ class LocalRemoteSession:
         raise CommandNotAllowedError(f"LocalRemoteSession does not execute commands: {list(argv)}")
 
     async def run_mutating(
-        self, argv: Sequence[str], *, approval: ActionApproval, timeout_s: float = 30
+        self,
+        argv: Sequence[str],
+        *,
+        approval: ActionApproval,
+        timeout_s: float = 30,
+        input: str | None = None,
     ) -> CommandResult:
         raise CommandNotAllowedError(f"LocalRemoteSession does not execute commands: {list(argv)}")
 

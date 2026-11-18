@@ -17,11 +17,14 @@ SimManager **observes**:
 - connects to clusters via SSH, discovers the user's jobs, associates them with campaign
   cases, shows live progress (plots of `.out`/logs), state and notifications;
 - offers an **integrated SSH terminal**: the user performs all cluster actions there;
-- tracks input changes between runs (snapshot + diff + notes).
+- tracks input changes between runs (snapshot + diff + notes);
+- **Display** (2026-11-18): runs the user's Python plotting scripts (versioned library) on
+  the cluster login node in the run folder, shows the images/GIFs they write, keeps their
+  history and browses the run folder (ADR 0008).
 
-It does **not** build setups, modify remote files or submit jobs. The monitoring engine is
-read-only; mutating quick actions (e.g. `scancel`) need explicit UI confirmation and are
-logged. Runs locally (UI on `127.0.0.1`); remote access must be addable later as a plugin.
+It does **not** build setups or submit jobs. The monitoring engine is read-only; actions
+that change the cluster (`scancel`, display scripts) need an explicit user approval in the
+UI and are logged. Runs locally (UI on `127.0.0.1`); remote access must be addable later as a plugin.
 
 ## Architecture principle
 

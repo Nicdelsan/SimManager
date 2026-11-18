@@ -47,6 +47,9 @@ class SshTestServer:
         self.otp: str | None = None
         self.commands: dict[str, tuple[str, str, int]] = {}
         self.executed: list[str] = []
+        self.read_stdin: set[str] = set()
+        """Commands whose stdin is read to EOF and recorded in `stdin`."""
+        self.stdin: dict[str, str] = {}
         self.pty_commands: list[str | None] = []
         """Command of every PTY request (None: plain `shell` request)."""
         self.shells: list[asyncssh.SSHServerProcess[str]] = []
@@ -140,6 +143,8 @@ class SshTestServer:
             return
         command = str(process.command or "")
         self.executed.append(command)
+        if command in self.read_stdin:
+            self.stdin[command] = await process.stdin.read()
         stdout, stderr, status = self.commands.get(command, ("", f"unknown: {command}\n", 127))
         process.stdout.write(stdout)
         process.stderr.write(stderr)
