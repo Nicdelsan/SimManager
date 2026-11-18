@@ -7,7 +7,8 @@
 
 import uPlot from "../vendor/uplot-1.6.31/uPlot.esm.js";
 import { api } from "./api.js";
-import { h, clear, fmtCount } from "./util.js";
+import { h, clear, fmtCount, pct } from "./util.js";
+import { fmtTick, fmtValue } from "./plotfmt.js";
 
 const COLORS = ["#2563eb", "#dc2626", "#16a34a", "#9333ea", "#ea580c", "#0891b2",
   "#4b5563", "#db2777", "#65a30d", "#7c3aed"];
@@ -77,7 +78,7 @@ export class Plot {
       s.x = r.x; s.y = r.y; s.level = r.level; s.shown = r.x.length; s.total = r.total_points;
       if (!this.window) s.tailX = r.x.length ? r.x[r.x.length - 1] : null;
     });
-    this.render(true);
+    this.render();
   }
 
   appendPoints(seriesId, xs, ys) {
@@ -90,7 +91,7 @@ export class Plot {
     s.shown = s.x.length; s.total += xs.length;
     if (!this.renderPending) {
       this.renderPending = true;
-      requestAnimationFrame(() => { this.renderPending = false; this.render(false); });
+      requestAnimationFrame(() => { this.renderPending = false; this.render(); });
     }
   }
 
@@ -101,37 +102,89 @@ export class Plot {
     return [joined[0], ...joined.slice(1).map(prep)];
   }
 
-  render(rescale) {
+  render() {
     const data = this.data();
     this.updateLevel();
     if (this.uplot) {
-      this.uplot.setData(data, rescale && !this.window);
+      // Unzoomed: rescale both axes on every update (live points included), otherwise
+      // the axes stay frozen on the range of the first load.
+      this.uplot.setData(data, !this.window);
       if (this.window) this.uplot.setScale("x", { min: this.window[0], max: this.window[1] });
       return;
     }
+    const time = !!this.options.time;
+    const ticks = (u, splits) => splits.map(fmtTick);
+    const value = (u, v) => fmtValue(v);
     const opts = {
       width: this.width(),
       height: HEIGHT,
       scales: {
-        x: { time: !!this.options.time },
+        x: { time },
         y: this.log ? { distr: 3 } : (this.options.percent ? { range: [0, 1] } : {}),
       },
       axes: [
-        {},
+        time ? {} : { values: ticks },
         this.options.percent
-          ? { values: (u, ticks) => ticks.map((t) => `${Math.round(t * 100)}%`) }
-          : { size: 70 },
+          ? { values: (u, splits) => splits.map((t) => `${Math.round(t * 100)}%`) }
+          : { size: 70, values: ticks },
       ],
       series: [
-        { label: this.options.xLabel || "x" },
-        ...this.series.map((s) => ({ label: s.label, stroke: s.color, width: 1.25, spanGaps: true })),
+        time ? { label: this.options.xLabel || "time" } : { label: this.options.xLabel || "x", value },
+        ...this.series.map((s) => ({
+          label: s.label, stroke: s.color, width: 1.25, spanGaps: true,
+          value: this.options.percent ? (u, v) => pct(v) : value,
+        })),
       ],
-      cursor: { drag: { x: true, y: false, setScale: false } },
-      hooks: { setSelect: [(u) => this.onSelect(u)] },
+      cursor: {
+        drag: { x: true, y: false, setScale: false },
+        // Series joined on a common x have gaps (and log scale nulls non-positive
+        // values): show the nearest real point instead of an empty value.
+        hover: { skip: [null, undefined] },
+      },
+      hooks: {
+        setSelect: [(u) => this.onSelect(u)],
+        ready: [(u) => this.initTooltip(u)],
+        setCursor: [(u) => this.updateTooltip(u)],
+      },
       legend: { live: true },
     };
     clear(this.chartEl);
     this.uplot = new uPlot(opts, data, this.chartEl);
+  }
+
+  initTooltip(u) {
+    this.tip = h("div", { class: "plot-tip", hidden: true });
+    u.over.append(this.tip);
+  }
+
+  /** Tooltip next to the cursor with x and the nearest point of each visible series. */
+  updateTooltip(u) {
+    if (!this.tip) return;
+    const { left, top, idx } = u.cursor;
+    if (idx === null || idx === undefined || left < 0) { this.tip.hidden = true; return; }
+    const fmtX = this.options.time
+      ? (v) => new Date(v * 1000).toLocaleString()
+      : fmtValue;
+    const fmtY = this.options.percent ? pct : fmtValue;
+    const rows = [h("div", { class: "x" }, `${u.series[0].label}: ${fmtX(u.data[0][idx])}`)];
+    u.series.forEach((s, i) => {
+      if (i === 0 || !s.show) return;
+      const j = u.cursor.idxs[i];
+      if (j === null || j === undefined) return;
+      const swatch = h("span", { class: "swatch" });
+      swatch.style.background = this.series[i - 1].color;
+      const at = j === idx ? "" : ` @ ${fmtX(u.data[0][j])}`;
+      rows.push(h("div", {}, swatch, `${s.label}: ${fmtY(u.data[i][j])}${at}`));
+    });
+    clear(this.tip);
+    this.tip.append(...rows);
+    this.tip.hidden = false;
+    const flipX = left > u.over.clientWidth / 2;
+    const flipY = top > u.over.clientHeight / 2;
+    this.tip.classList.toggle("flip-x", flipX);
+    this.tip.classList.toggle("flip-y", flipY);
+    this.tip.style.left = `${left + (flipX ? -12 : 12)}px`;
+    this.tip.style.top = `${top + (flipY ? -12 : 12)}px`;
   }
 
   onSelect(u) {
@@ -154,7 +207,7 @@ export class Plot {
     this.log = !this.log;
     this.logBtn.classList.toggle("on", this.log);
     if (this.uplot) { this.uplot.destroy(); this.uplot = null; }
-    this.render(true);
+    this.render();
   }
 
   updateLevel() {
